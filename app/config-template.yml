@@ -1,0 +1,12 @@
+default:
+  aws_key: ""
+  aws_secret: ""
+  aws_region: ""
+  aws_bucket: ""
+  oauth_redirect_url: ""
+  oauth_key: ""
+  oauth_secret: ""
+  oauth_scope: ""
+  gcs_bucket: ""
+  simple_username: ""
+  simple_password: ""

@@ -1,0 +1,93 @@
+body {
+  margin: 0; 
+  padding: 0;
+  background-color: #ffffff;
+}
+
+.sidePanel {
+  padding: 5px;
+}
+
+.styleOptions {
+  padding: 10px;
+}
+
+#homePage {
+  background-image: url('farm-bg-fade-2.jpg');
+  background-position: center center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  background-size: cover;
+  -webkit-background-size: cover;
+  -moz-background-size: cover;
+  -o-background-size: cover;
+  height: 100vh !important;
+  width: 100vw !important;
+  position: fixed; 
+  top: 0; 
+  left: 0; 
+  right: 0;
+  bottom: 0; 
+  margin: 0;
+  padding: 0; 
+  overflow: hidden;
+}
+
+#table {
+  height: calc(100vh - 75px) !important;
+  width: calc(100vw - 250px) !important;
+  position: fixed; 
+  top: 75px; 
+  left: 250px; 
+  bottom: 0; 
+  padding: 5px; 
+}
+
+#map {
+  height: calc(100vh - 75px) !important;
+  width: calc(100vw - 250px) !important;
+  position: fixed; 
+  top: 75px; 
+  left: 250px; 
+  bottom: 0; 
+  padding: 0; 
+  overflow: hidden;
+}
+
+#report {
+  height: calc(100vh - 75px) !important;
+  padding-top: 60px;
+  bottom: 0;
+  overflow: scroll;
+}
+
+/*fill map to height of container;  https://stackoverflow.com/questions/36469631/how-to-get-leaflet-for-r-use-100-of-shiny-dashboard-height/36471739#36471739*/
+.leaflet-map-pane {
+  z-index: auto; 
+}
+
+/* centre notifications */
+.shiny-notification {
+   position:fixed;
+   top: calc(50%);
+   left: calc(50%);
+}
+
+/*set colour on sliders*/
+.irs--shiny .irs-bar {
+    top: 25px;
+    height: 8px;
+    border-top: 1px solid #593196;
+    border-bottom: 1px solid #593196;
+    background: #593196;
+}
+
+.irs-to, .irs--shiny .irs-single {
+    color: #fff;
+    text-shadow: none;
+    padding: 1px 3px;
+    background-color: #593196;
+    border-radius: 3px;
+    font-size: 11px;
+    line-height: 1.333;
+}
