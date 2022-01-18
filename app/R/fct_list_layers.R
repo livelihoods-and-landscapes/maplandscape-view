@@ -30,7 +30,7 @@ list_layers <- function(f_path, f_name) {
         tmp_layers <- sf::st_layers(unzipped_fpath)
         tmp_layers <- tmp_layers$name
         y_clean <- xfun::sans_ext(unzipped_fname)
-        layer_disp_name <- paste0(tmp_layers, " (", y_clean, ")")
+        layer_disp_name <- paste0(tmp_layers)
         tbl_tmp <- tibble::tibble(layers = tmp_layers, layer_disp_name = layer_disp_name, file_path = unzipped_fpath, file_type = unzipped_ftype)
         tmp_tbl_out <- dplyr::bind_rows(tmp_tbl_out, tbl_tmp)
       } else if (unzipped_ftype == "csv") {
@@ -45,7 +45,7 @@ list_layers <- function(f_path, f_name) {
     tmp_layers <- sf::st_layers(f_path)
     tmp_layers <- tmp_layers$name
     y_clean <- xfun::sans_ext(f_name)
-    layer_disp_name <- paste0(tmp_layers, " (", y_clean, ")")
+    layer_disp_name <- paste0(tmp_layers)
     tbl_out <- tibble::tibble(layers = tmp_layers, layer_disp_name = layer_disp_name, file_path = f_path, file_type = f_type)
   } else if (f_type == "csv") {
     y_clean <- xfun::sans_ext(f_name)

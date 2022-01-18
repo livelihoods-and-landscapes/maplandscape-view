@@ -10,3 +10,5 @@ default:
   gcs_bucket: ""
   simple_username: ""
   simple_password: ""
+  custom_xyz: ""
+  custom_xyz_name: ""

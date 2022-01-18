@@ -46,8 +46,9 @@ Sys.setenv("AWS_ACCESS_KEY_ID" = aws_key,
 username <- config$simple_username
 password <- config$simple_password
 
-# '2' is the enum value corresponding to CURL_HTTP_VERSION_1_1
-# httr::set_config(httr::config(http_version = 2))
+# custom xyz basemap
+custom_xyz <- config$custom_xyz
+custom_xyz_name <- config$custom_xyz_name
 
 # map colour palettes
 colour_mappings <- c(
