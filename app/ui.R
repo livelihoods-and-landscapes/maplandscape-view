@@ -27,23 +27,21 @@ shinyUI(
             class = "mx-auto",
             # login
             textInput("in_username",
-                      "email:",
-                      value = "",
-                      placeholder = ""
+              "email:",
+              value = "",
+              placeholder = ""
             ),
-            
+
             #  password
             passwordInput("in_password",
-                          "password:",
-                          value = "",
-                          placeholder = ""
+              "password:",
+              value = "",
+              placeholder = ""
             ),
-            
             actionButton(
               "login",
               htmltools::HTML("login")
             ),
-            
             uiOutput("login_status"),
           ),
           class = "justify-content-center"
@@ -92,12 +90,12 @@ shinyUI(
         ),
         checkboxInput(
           "mask_zero",
-          label = "Mask zeros:",
+          label = "Mask zeros.",
           value = FALSE
         ),
         checkboxInput(
           "legend",
-          label = "Add legend:",
+          label = "Add legend.",
           value = FALSE
         ),
         textInput(
@@ -219,7 +217,6 @@ shinyUI(
           )
         ),
         tags$h5("Map styling options"),
-        
         fluidRow(
           column(
             4,

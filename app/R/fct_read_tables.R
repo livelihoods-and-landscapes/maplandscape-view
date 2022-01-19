@@ -9,11 +9,18 @@ read_tables <- function(uploads, lyr) {
   req(uploads, lyr)
   a_lyr <- uploads %>%
     dplyr::filter(layer_disp_name_idx == lyr)
-  
+
   if (a_lyr$file_type == "gpkg") {
-    a_df <- sf::st_read(a_lyr$file_path, layer = a_lyr$layers, stringsAsFactors = FALSE)
+    a_df <-
+      sf::st_read(a_lyr$file_path,
+        layer = a_lyr$layers,
+        stringsAsFactors = FALSE
+      )
     if ("sf" %in% class(a_df)) {
-      a_df <- sf::st_sf(sf::st_set_geometry(a_df, NULL), geometry = sf::st_geometry(a_df))
+      a_df <-
+        sf::st_sf(sf::st_set_geometry(a_df, NULL),
+          geometry = sf::st_geometry(a_df)
+        )
     }
   } else if (a_lyr$file_type == "csv") {
     a_df <- dplyr::read_csv(a_lyr$file_path)

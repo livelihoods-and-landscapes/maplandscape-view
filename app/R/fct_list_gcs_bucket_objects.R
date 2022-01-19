@@ -17,28 +17,28 @@ list_gcs_bucket_objects <- function(token, bucket) {
     shiny::showNotification("login with Google", type = "error", duration = 5)
     return()
   }
-  
+
   # bucket to list objects in
   bucket_name <- paste0("https://storage.googleapis.com/storage/v1/b/", bucket, "/o")
-  
+
   # create a HTTP get request to list objects in the bucket
   req <- httr::GET(
     bucket_name,
     httr::config(token = token)
   )
-  
+
   # check HTTP request did not return an error code, if error code returned show message to user
   if (req$status_code > 399) {
     shiny::showNotification(paste0("response error: ", req$status_code), type = "error", duration = 5)
     return()
   }
-  
+
   # if HTTP response status code < 400 try and extract list of objects in bucket, filter GeoPackages, and return list of GeoPackages
   items <- NULL
   if (req$status_code < 399) {
     res <- httr::content(req)
     kind <- try(res$kind)
-    
+
     # check response is Google Cloud Storage object
     # GCS response is a JSON object with:
     # kind property - string and always "storage#objects" when listing bucket objects
@@ -65,6 +65,6 @@ list_gcs_bucket_objects <- function(token, bucket) {
       )
     }
   }
-  
+
   items
 }

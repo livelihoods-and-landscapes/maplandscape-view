@@ -26,7 +26,7 @@ group_by_summarise <- function(in_df, group_var, summ_var) {
     mean = ~ mean(.x, na.rm = TRUE),
     sum = ~ sum(.x, na.rm = TRUE)
   )
-  
+
   if (is.null(summ_var)) {
     s_df <- tryCatch(
       error = function(cnd) NULL,

@@ -5,51 +5,51 @@
 
 add_layers_leaflet <- function(map_object, map_active_df, map_var, map_colour, opacity, map_line_width, map_line_colour, waiter, mask_zero) {
   supported_geometries <- c("POINT", "LINESTRING", "MULTILINESTRING", "POLYGON", "MULTIPOLYGON")
-  
+
   if ("sf" %in% class(map_active_df) & is.atomic(map_active_df[[map_var]]) & nrow(map_active_df) > 0) {
     waiter$show()
-    
+
     # Catch GeoPackages with non-spatial tables that GeoPandas has added empty
     # GeometryCollection column to.
     if (any(is.na(sf::st_crs(map_active_df)))) {
       waiter$hide()
       return()
     }
-    
+
     # make map active layer epsg 4326
     # make this an if statement
     map_df <- try(
       map_active_df %>%
         sf::st_transform(4326)
     )
-    
+
     if (mask_zero == TRUE) {
       try(
         map_df[[map_var]][map_df[[map_var]] == 0] <- NA
       )
     }
-    
+
     if ("try-error" %in% class(map_df)) {
       waiter$hide()
       return()
     }
-    
+
     # get geometry type of map active layer
     geometry_type <- sf::st_geometry_type(map_df, by_geometry = FALSE)
-    
+
     if (geometry_type %in% supported_geometries) {
-      
+
       # get bounding box for the map
       bbox <- sf::st_bbox(map_df) %>%
         as.vector()
-      
+
       # make colour palette
       if (class(map_df[[map_var]]) != "numeric" & class(map_df[[map_var]]) != "integer") {
         pal <- leaflet::colorFactor(map_colour, map_df[[map_var]])
       } else {
         pal <- leaflet::colorNumeric(map_colour, map_df[[map_var]])
       }
-      
+
       # draw polygon layers
       if (geometry_type == "POLYGON" | geometry_type == "MULTIPOLYGON") {
         proxy_map <- leaflet::leafletProxy(map_object, data = map_df) %>%
@@ -104,10 +104,10 @@ add_layers_leaflet <- function(map_object, map_active_df, map_var, map_colour, o
             position = c("bottomright")
           )
       } else if (geometry_type == "MULTIPOINT") {
-        
+
         # cast MULTIPOINT to POINT as Leaflet does not support multipoint
         map_df <- st_cast(map_df, "POINT")
-        
+
         proxy_map <- leaflet::leafletProxy(map_object, data = map_df) %>%
           leaflet::clearControls() %>%
           leaflet::clearMarkers() %>%
@@ -133,6 +133,6 @@ add_layers_leaflet <- function(map_object, map_active_df, map_var, map_colour, o
       proxy_map
     }
   }
-  
+
   waiter$hide()
 }
