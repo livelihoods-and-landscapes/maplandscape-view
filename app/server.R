@@ -211,7 +211,6 @@ shinyServer(function(input, output, session) {
   
   # Create web map
   output$map <- leaflet::renderLeaflet({
-    browser()
     
     use_custom_basemap <- nchar(custom_xyz)
     
