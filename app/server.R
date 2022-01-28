@@ -1,4 +1,9 @@
 shinyServer(function(input, output, session) {
+  
+  # waiting screen
+  waiter <- waiter::Waiter$new(html = loading_screen,
+                               color = "rgba(255,255,254,.5)")
+  
   # app data
   data_file <-
     reactiveValues(
@@ -78,6 +83,8 @@ shinyServer(function(input, output, session) {
   observeEvent(input$s3_bucket_objects, {
     req(input$s3_bucket_objects)
     
+    waiter$show()
+
     selected_s3_object <- input$s3_bucket_objects
     
     s3_gpkg <- NULL
@@ -108,6 +115,8 @@ shinyServer(function(input, output, session) {
         data_file$data_file <- df
       })
     }
+    
+    waiter$hide()
   })
   
   # select one layer as active layer from files loaded to the server
@@ -195,7 +204,7 @@ shinyServer(function(input, output, session) {
                       choices = choices)
   })
   
-  # select one layer as active layer from files loaded to the server
+  # select one column
   observe({
     df <- map_active_df()
     choices <- colnames(df)
@@ -545,6 +554,8 @@ shinyServer(function(input, output, session) {
   observeEvent(input$table_s3_bucket_objects, {
     req(input$table_s3_bucket_objects)
     
+    waiter$show()
+    
     selected_s3_object <- input$table_s3_bucket_objects
     
     s3_gpkg <- NULL
@@ -579,6 +590,8 @@ shinyServer(function(input, output, session) {
         data_file$data_table <- df
       })
     }
+    
+    waiter$hide()
   })
   
   # select one table as active layer from files loaded to the server
@@ -698,10 +711,7 @@ shinyServer(function(input, output, session) {
   
   
   # Report ------------------------------------------------------------------
-  
-  waiter <- waiter::Waiter$new(html = loading_screen,
-                               color = "rgba(255,255,254,.5)")
-  
+
   # update select input with list of objects in S3 bucket
   observe({
     data_file$items
@@ -719,9 +729,12 @@ shinyServer(function(input, output, session) {
   })
   
   # get user selected S3 object as layer
-  # write GeoPackage retrieved from Google S3 to data_file$data_file and unpack layers in GeoPackage
+  # write GeoPackage retrieved from S3 to data_file$data_file and unpack layers in GeoPackage
   observeEvent(input$report_s3_bucket_objects, {
     req(input$report_s3_bucket_objects)
+    
+    waiter$show()
+    
     selected_s3_object <- input$report_s3_bucket_objects
     
     s3_gpkg <- NULL
@@ -756,6 +769,8 @@ shinyServer(function(input, output, session) {
         data_file$data_report <- df
       })
     }
+    
+    waiter$hide()
   })
   
   # select one table as active layer from files loaded to the server
@@ -798,7 +813,7 @@ shinyServer(function(input, output, session) {
     report_active_df
   })
   
-  # select columns to display in data table
+  # select columns to use in report
   observe({
     req(report_active_df())
     df <- report_active_df()
@@ -812,7 +827,7 @@ shinyServer(function(input, output, session) {
                       choices = choices)
   })
   
-  # select group columns to display in data table
+  # select group columns to display in report
   observe({
     req(report_active_df())
     
