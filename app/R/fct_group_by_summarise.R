@@ -27,23 +27,24 @@ group_by_summarise <- function(in_df, group_var, summ_var) {
     sum = ~ sum(.x, na.rm = TRUE)
   )
 
+  
   if (is.null(summ_var)) {
     s_df <- tryCatch(
       error = function(cnd) NULL,
       in_df %>%
         as.data.frame() %>%
-        select(!!!group_var) %>%
-        group_by(across(any_of(group_var))) %>%
-        tally()
+        dplyr::select(!!!group_var) %>%
+        dplyr::group_by(dplyr::across(tidyselect::any_of(group_var))) %>%
+        dplyr::tally()
     )
   } else {
     s_df <- tryCatch(
       error = function(cnd) NULL,
       in_df %>%
         as.data.frame() %>%
-        select(!!!group_var, !!!summ_var) %>%
-        group_by(across(any_of(group_var))) %>%
-        summarise(across(where(is.numeric), funs_list_numeric), n = n(), .groups = "keep")
+        dplyr::select(!!!group_var, !!!summ_var) %>%
+        dplyr::group_by(dplyr::across(tidyselect::any_of(group_var))) %>%
+        dplyr::summarise(dplyr::across(where(is.numeric), funs_list_numeric), n = n(), .groups = "keep")
     )
   }
   s_df

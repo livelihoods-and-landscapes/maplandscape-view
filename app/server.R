@@ -1,5 +1,4 @@
 shinyServer(function(input, output, session) {
-  
   # waiting screen
   waiter <- waiter::Waiter$new(html = loading_screen,
                                color = "rgba(255,255,254,.5)")
@@ -12,6 +11,7 @@ shinyServer(function(input, output, session) {
       data_table = data.frame(),
       data_report = data.frame(),
       map_drawn = 0,
+      base_groups = NULL, 
       report_map = NULL,
       report_chart = NULL,
       report_summary_table = NULL,
@@ -21,6 +21,7 @@ shinyServer(function(input, output, session) {
     )
   
   # token is TRUE if the user is logged in successfully
+  # To-Do - move this to use QFieldCloud auth
   token <- observeEvent(input$login, {
     if (input$in_username == username & input$in_password == password) {
       data_file$token <- TRUE
@@ -38,21 +39,23 @@ shinyServer(function(input, output, session) {
     }
   })
   
-  # get list of GeoPackages in s3 bucket that a user can view in app
+  # get a list of GeoPackages in an S3 bucket
   observe({
     req(data_file$token)
     req(aws_bucket)
     
+    items <- NULL
+    
     items <- list_s3_bucket_objects(aws_bucket)
     
-    if ("no items returned" %in% items | is.null(items)) {
-      shiny::showNotification("no items returned from S3 query",
+    if (is.null(items)) {
+      shiny::showNotification("no items returned from S3",
                               type = "error",
                               duration = 5)
       data_file$items <- NULL
     } else {
       # these are checks specific to working with Tonga Crop Survey data
-      # avoid showing some Tonga Crop Survey data to the user
+      # avoid showing some Tonga Crop Survey data files to the user
       items <- stringr::str_subset(items, "^sync", negate = TRUE)
       items <-
         stringr::str_subset(items, "-outline.gpkg$", negate = TRUE)
@@ -78,48 +81,43 @@ shinyServer(function(input, output, session) {
     }
   })
   
-  # get user selected S3 object as a layer
-  # write GeoPackage retrieved from S3 to data_file$data_file and unpack layers in GeoPackage
+  # get user selected S3 object as a layer write GeoPackage retrieved from S3 to
+  # data_file$data_file and unpack layers in the GeoPackage
   observeEvent(input$s3_bucket_objects, {
     req(input$s3_bucket_objects)
     
     waiter$show()
-
+    
     selected_s3_object <- input$s3_bucket_objects
     
-    s3_gpkg <- NULL
-    s3_gpkg <- try(get_s3_object(aws_bucket, selected_s3_object))
-    
-    f_lyrs <- NULL
-    
-    if (!"try-error" %in% class(s3_gpkg) &
-        !is.null(s3_gpkg) &
-        !any(stringr::str_detect(s3_gpkg, "cannot load GeoPackage from S3"))) {
-      f_lyrs <- tryCatch(
-        error = function(cnd) {
-          NULL
-        },
-        purrr::map2(s3_gpkg$f_path,
-                    s3_gpkg$f_name,
-                    list_layers) %>%
+    tryCatch(
+      error = function(cnd) {
+        
+      },
+      {
+        s3_gpkg <- get_s3_object(aws_bucket, selected_s3_object)
+        
+        f_lyrs <- purrr::map2(s3_gpkg$f_path,
+                              s3_gpkg$f_name,
+                              list_layers) %>%
           dplyr::bind_rows()
-      )
-      
-      # clear existing layers
-      data_file$data_file <- data.frame()
-      
-      isolate({
+        
+        # clear existing layers
+        data_file$data_file <- data.frame()
+        
         df <- dplyr::bind_rows(data_file$data_file, f_lyrs)
-        # this line is redundant but other functions need to be refactored to remove dependency on layer_disp_name_idx
+        
+        # this line is redundant but other functions need to be refactored to
+        # remove dependency on layer_disp_name_idx
         df$layer_disp_name_idx <- paste0(df$layer_disp_name)
         data_file$data_file <- df
-      })
-    }
+      }
+    )
     
     waiter$hide()
   })
   
-  # select one layer as active layer from files loaded to the server
+  # select one layer as active layer from S3 GeoPackages
   observe({
     df <- data_file$data_file
     choices <- unique(df$layer_disp_name_idx)
@@ -129,12 +127,12 @@ shinyServer(function(input, output, session) {
   })
   
   # read selected layer into reactive object
-  # active df - use this df for summarising and generating raw tables for display
   map_active_df <- reactive({
     req(input$map_active_layer)
     
     df <- data_file$data_file
     
+    # read seleted layer from GeoPackage
     map_active_df <- try(read_tables(df, input$map_active_layer))
     
     if ("try-error" %in% class(map_active_df)) {
@@ -148,7 +146,7 @@ shinyServer(function(input, output, session) {
     }
     
     if (nrow(map_active_df) > 10000) {
-      map_active_df <- map_active_df[1:10000,]
+      map_active_df <- map_active_df[1:10000, ]
       id <-
         showNotification(
           "Only drawing first 10000 features!",
@@ -158,13 +156,11 @@ shinyServer(function(input, output, session) {
     }
     
     # show warning if map active layer has no records
-    shinyFeedback::feedbackWarning("map_active_layer",
-                                   !(nrow(map_active_df) > 0),
+    shinyFeedback::feedbackWarning("map_active_layer",!(nrow(map_active_df) > 0),
                                    "Not updating map - no records in selected layer")
     
     # show warning if map active layer is not spatial (class sf)
-    shinyFeedback::feedbackWarning("map_active_layer",
-                                   !("sf" %in% class(map_active_df)),
+    shinyFeedback::feedbackWarning("map_active_layer",!("sf" %in% class(map_active_df)),
                                    "Not updating map - not a spatial layer")
     
     # don't update options if selected layer has no records
@@ -190,7 +186,7 @@ shinyServer(function(input, output, session) {
     map_active_df
   })
   
-  # update select a column
+  # update select input to choose column in layer to visualise
   observe({
     df <- map_active_df()
     choices <- colnames(df)
@@ -204,7 +200,7 @@ shinyServer(function(input, output, session) {
                       choices = choices)
   })
   
-  # select one column
+  # select columns to display in map popup
   observe({
     df <- map_active_df()
     choices <- colnames(df)
@@ -220,7 +216,6 @@ shinyServer(function(input, output, session) {
   
   # Create web map
   output$map <- leaflet::renderLeaflet({
-    
     use_custom_basemap <- nchar(custom_xyz)
     
     if (nchar(use_custom_basemap) > 0) {
@@ -243,6 +238,8 @@ shinyServer(function(input, output, session) {
           options = leaflet::layersControlOptions(collapsed = FALSE),
           position = c("bottomright")
         )
+      
+      data_file$base_group <- c("OSM (default)", custom_xyz_name, "ESRI Satellite")
     } else {
       base_map <- leaflet::leaflet() %>%
         leaflet::addTiles(group = "OSM (default)") %>%
@@ -257,6 +254,8 @@ shinyServer(function(input, output, session) {
           options = leaflet::layersControlOptions(collapsed = FALSE),
           position = c("bottomright")
         )
+      
+      data_file$base_group <-c("OSM (default)", "ESRI Satellite")
     }
     
     base_map
@@ -272,53 +271,62 @@ shinyServer(function(input, output, session) {
     req(input$map_var)
     
     if (data_file$map_drawn == 0) {
-      if ("sf" %in% class(map_active_df()) &
-          is.atomic(map_active_df()[[input$map_var]]) &
-          nrow(map_active_df()) > 0) {
-        add_layers_leaflet(
-          map_object = "map",
-          map_active_df = map_active_df(),
-          map_var = input$map_var,
-          map_colour = input$map_colour,
-          opacity = 0.8,
-          map_line_width = input$map_line_width,
-          map_line_colour = input$map_line_colour,
-          waiter = map_waiter,
-          mask_zero = input$mask_zero
+        tryCatch(
+          error = function(cnd) {
+            
+          },
+          {
+            add_layers_leaflet(
+              map_object = "map",
+              map_active_df = map_active_df(),
+              map_var = input$map_var,
+              map_colour = input$map_colour,
+              opacity = 0.8,
+              map_line_width = input$map_line_width,
+              map_line_colour = input$map_line_colour,
+              waiter = map_waiter,
+              mask_zero = input$mask_zero,
+              base_group = data_file$base_group
+            )
+            
+            data_file$map_drawn <- 1
+            
+            # Catch GeoPackages with non-spatial tables that GeoPandas has added empty
+            # GeometryCollection column to.
+            if (any(is.na(sf::st_crs(map_active_df())))) {
+              data_file$map_drawn <- 0
+            }
+          }
         )
-        data_file$map_drawn <- 1
-        
-        # Catch GeoPackages with non-spatial tables that GeoPandas has added empty
-        # GeometryCollection column to.
-        if (any(is.na(sf::st_crs(map_active_df())))) {
-          data_file$map_drawn <- 0
-        }
-      }
     } else if (data_file$map_drawn == 1) {
-      if ("sf" %in% class(map_active_df()) &
-          is.atomic(map_active_df()[[input$map_var]]) &
-          nrow(map_active_df()) > 0) {
-        add_layers_leaflet_no_zoom(
-          map_object = "map",
-          map_active_df = map_active_df(),
-          map_var = input$map_var,
-          map_colour = input$map_colour,
-          opacity = 0.8,
-          map_line_width = input$map_line_width,
-          map_line_colour = input$map_line_colour,
-          waiter = map_waiter,
-          mask_zero = input$mask_zero
-        )
-        data_file$map_drawn <- 1
-        
-        # Catch GeoPackages with non-spatial tables that GeoPandas has added empty
-        # GeometryCollection column to.
-        if (any(is.na(sf::st_crs(map_active_df())))) {
-          data_file$map_drawn <- 0
+      tryCatch(
+        error = function(cnd) {
+          
+        },
+        {
+          add_layers_leaflet_no_zoom(
+            map_object = "map",
+            map_active_df = map_active_df(),
+            map_var = input$map_var,
+            map_colour = input$map_colour,
+            opacity = 0.8,
+            map_line_width = input$map_line_width,
+            map_line_colour = input$map_line_colour,
+            waiter = map_waiter,
+            mask_zero = input$mask_zero,
+            base_group = data_file$base_group
+          )
+          
+          data_file$map_drawn <- 1
+          
+          # Catch GeoPackages with non-spatial tables that GeoPandas has added
+          # empty GeometryCollection column to.
+          if (any(is.na(sf::st_crs(map_active_df())))) {
+            data_file$map_drawn <- 0
+          }
         }
-      }
+      )
     }
-    
     # set legend to false on adding new data to the map
     updateCheckboxInput(session,
                         "legend",
@@ -331,21 +339,25 @@ shinyServer(function(input, output, session) {
     req(input$map_var)
     
     if (data_file$map_drawn == 1) {
-      if ("sf" %in% class(map_active_df()) &
-          is.atomic(map_active_df()[[input$map_var]]) &
-          nrow(map_active_df()) > 0) {
-        add_layers_leaflet_no_zoom(
-          map_object = "map",
-          map_active_df = map_active_df(),
-          map_var = input$map_var,
-          map_colour = input$map_colour,
-          opacity = 0.8,
-          map_line_width = input$map_line_width,
-          map_line_colour = input$map_line_colour,
-          waiter = map_waiter,
-          mask_zero = input$mask_zero
-        )
-      }
+      tryCatch(
+        error = function(cnd) {
+          
+        },
+        {
+          add_layers_leaflet_no_zoom(
+            map_object = "map",
+            map_active_df = map_active_df(),
+            map_var = input$map_var,
+            map_colour = input$map_colour,
+            opacity = 0.8,
+            map_line_width = input$map_line_width,
+            map_line_colour = input$map_line_colour,
+            waiter = map_waiter,
+            mask_zero = input$mask_zero,
+            base_group = data_file$base_group
+          )
+        }
+      )
     }
   })
   
@@ -355,21 +367,25 @@ shinyServer(function(input, output, session) {
     req(input$map_var)
     
     if (data_file$map_drawn == 1) {
-      if ("sf" %in% class(map_active_df()) &
-          is.atomic(map_active_df()[[input$map_var]]) &
-          nrow(map_active_df()) > 0) {
-        add_layers_leaflet_no_zoom(
-          map_object = "map",
-          map_active_df = map_active_df(),
-          map_var = input$map_var,
-          map_colour = input$map_colour,
-          opacity = 0.8,
-          map_line_width = input$map_line_width,
-          map_line_colour = input$map_line_colour,
-          waiter = map_waiter,
-          mask_zero = input$mask_zero
-        )
-      }
+      tryCatch(
+        error = function(cnd) {
+          
+        },
+        {
+          add_layers_leaflet_no_zoom(
+            map_object = "map",
+            map_active_df = map_active_df(),
+            map_var = input$map_var,
+            map_colour = input$map_colour,
+            opacity = 0.8,
+            map_line_width = input$map_line_width,
+            map_line_colour = input$map_line_colour,
+            waiter = map_waiter,
+            mask_zero = input$mask_zero,
+            base_group = data_file$base_group
+          )
+        }
+      )
     }
   })
   
@@ -379,21 +395,25 @@ shinyServer(function(input, output, session) {
     req(input$map_var)
     
     if (data_file$map_drawn == 1) {
-      if ("sf" %in% class(map_active_df()) &
-          is.atomic(map_active_df()[[input$map_var]]) &
-          nrow(map_active_df()) > 0) {
-        add_layers_leaflet_no_zoom(
-          map_object = "map",
-          map_active_df = map_active_df(),
-          map_var = input$map_var,
-          map_colour = input$map_colour,
-          opacity = 0.8,
-          map_line_width = input$map_line_width,
-          map_line_colour = input$map_line_colour,
-          waiter = map_waiter,
-          mask_zero = input$mask_zero
-        )
-      }
+      tryCatch(
+        error = function(cnd) {
+          
+        },
+        {
+          add_layers_leaflet_no_zoom(
+            map_object = "map",
+            map_active_df = map_active_df(),
+            map_var = input$map_var,
+            map_colour = input$map_colour,
+            opacity = 0.8,
+            map_line_width = input$map_line_width,
+            map_line_colour = input$map_line_colour,
+            waiter = map_waiter,
+            mask_zero = input$mask_zero,
+            base_group = data_file$base_group
+          )
+        }
+      )
     }
   })
   
@@ -403,21 +423,25 @@ shinyServer(function(input, output, session) {
     req(input$map_var)
     
     if (data_file$map_drawn == 1) {
-      if ("sf" %in% class(map_active_df()) &
-          is.atomic(map_active_df()[[input$map_var]]) &
-          nrow(map_active_df()) > 0) {
-        add_layers_leaflet_no_zoom(
-          map_object = "map",
-          map_active_df = map_active_df(),
-          map_var = input$map_var,
-          map_colour = input$map_colour,
-          opacity = 0.8,
-          map_line_width = input$map_line_width,
-          map_line_colour = input$map_line_colour,
-          waiter = map_waiter,
-          mask_zero = input$mask_zero
-        )
-      }
+      tryCatch(
+        error = function(cnd) {
+          
+        },
+        {
+          add_layers_leaflet_no_zoom(
+            map_object = "map",
+            map_active_df = map_active_df(),
+            map_var = input$map_var,
+            map_colour = input$map_colour,
+            opacity = 0.8,
+            map_line_width = input$map_line_width,
+            map_line_colour = input$map_line_colour,
+            waiter = map_waiter,
+            mask_zero = input$mask_zero,
+            base_group = data_file$base_group
+          )
+        }
+      )
     }
     
     updateCheckboxInput(session,
@@ -486,6 +510,7 @@ shinyServer(function(input, output, session) {
     if ("sf" %in% class(map_active_df()) &
         is.atomic(map_active_df()[[input$map_var]]) &
         nrow(map_active_df()) > 0) {
+      
       # Catch GeoPackages with non-spatial tables that GeoPandas has added empty
       # GeometryCollection column to.
       if (any(is.na(sf::st_crs(map_active_df())))) {
@@ -501,6 +526,7 @@ shinyServer(function(input, output, session) {
         return()
       }
       
+      # update legend to reflect masking zero values
       if (input$mask_zero == TRUE) {
         try(map_df[[input$map_var]][map_df[[input$map_var]] == 0] <- NA)
       }
@@ -530,7 +556,6 @@ shinyServer(function(input, output, session) {
     }
   })
   
-  
   # Tables ------------------------------------------------------------------
   
   # update select input with list of objects in S3bucket
@@ -549,8 +574,8 @@ shinyServer(function(input, output, session) {
     }
   })
   
-  # get user selected S3 object as layer
-  # write GeoPackage retrieved from S3 to data_file$data_file and unpack layers in GeoPackage
+  # get user selected S3 object as layer write GeoPackage retrieved from S3 to
+  # data_file$data_file and unpack layers in GeoPackage
   observeEvent(input$table_s3_bucket_objects, {
     req(input$table_s3_bucket_objects)
     
@@ -558,40 +583,32 @@ shinyServer(function(input, output, session) {
     
     selected_s3_object <- input$table_s3_bucket_objects
     
-    s3_gpkg <- NULL
-    s3_gpkg <- try(get_s3_object(aws_bucket, selected_s3_object))
-    
-    f_lyrs <- NULL
-    
-    if (!"try-error" %in% class(s3_gpkg) &
-        !is.null(s3_gpkg) &
-        !any(stringr::str_detect(s3_gpkg, "cannot load GeoPackage from S3"))) {
-      f_lyrs <- tryCatch(
-        error = function(cnd) {
-          NULL
-        },
-        purrr::map2(s3_gpkg$f_path,
-                    s3_gpkg$f_name,
-                    list_layers) %>%
+    tryCatch(
+      error = function(cnd) {
+        
+      },
+      {
+        s3_gpkg <- get_s3_object(aws_bucket, selected_s3_object)
+        
+        f_lyrs <- purrr::map2(s3_gpkg$f_path,
+                              s3_gpkg$f_name,
+                              list_layers) %>%
           dplyr::bind_rows()
-      )
-      
-      # clear existing layers
-      data_file$data_table <- data.frame()
-      
-      isolate({
+        
+        # clear existing layers
+        data_file$data_table <- data.frame()
+        
         df <- dplyr::bind_rows(data_file$data_table, f_lyrs)
         
-        # unique number id next to each layer to catch uploads of tables with same name
-        rows <- nrow(df)
-        row_idx <- 1:rows
-        df$layer_disp_name_idx <-
-          paste0(df$layer_disp_name)
+        # this line is redundant but other functions need to be refactored to
+        # remove dependency on layer_disp_name_idx
+        df$layer_disp_name_idx <- paste0(df$layer_disp_name)
         data_file$data_table <- df
-      })
-    }
+      }
+    )
     
     waiter$hide()
+
   })
   
   # select one table as active layer from files loaded to the server
@@ -711,7 +728,7 @@ shinyServer(function(input, output, session) {
   
   
   # Report ------------------------------------------------------------------
-
+  
   # update select input with list of objects in S3 bucket
   observe({
     data_file$items
@@ -737,43 +754,34 @@ shinyServer(function(input, output, session) {
     
     selected_s3_object <- input$report_s3_bucket_objects
     
-    s3_gpkg <- NULL
-    s3_gpkg <- try(get_s3_object(aws_bucket, selected_s3_object))
-    
-    f_lyrs <- NULL
-    
-    if (!"try-error" %in% class(s3_gpkg) &
-        !is.null(s3_gpkg) &
-        !any(stringr::str_detect(s3_gpkg, "cannot load GeoPackage from S3"))) {
-      f_lyrs <- tryCatch(
-        error = function(cnd) {
-          NULL
-        },
-        purrr::map2(s3_gpkg$f_path,
-                    s3_gpkg$f_name,
-                    list_layers) %>%
+    tryCatch(
+      error = function(cnd) {
+        
+      },
+      {
+        s3_gpkg <- get_s3_object(aws_bucket, selected_s3_object)
+        
+        f_lyrs <- purrr::map2(s3_gpkg$f_path,
+                              s3_gpkg$f_name,
+                              list_layers) %>%
           dplyr::bind_rows()
-      )
-      
-      # clear existing layers
-      data_file$data_report <- data.frame()
-      
-      isolate({
+        
+        # clear existing layers
+        data_file$data_report <- data.frame()
+        
         df <- dplyr::bind_rows(data_file$data_report, f_lyrs)
         
-        # unique number id next to each layer to catch uploads of tables with same name
-        rows <- nrow(df)
-        row_idx <- 1:rows
-        df$layer_disp_name_idx <-
-          paste0(df$layer_disp_name)
+        # this line is redundant but other functions need to be refactored to
+        # remove dependency on layer_disp_name_idx
+        df$layer_disp_name_idx <- paste0(df$layer_disp_name)
         data_file$data_report <- df
-      })
-    }
-    
+      }
+    )
+
     waiter$hide()
   })
   
-  # select one table as active layer from files loaded to the server
+  # select one layer as active layer from files loaded to the server
   observe({
     df <- data_file$data_report
     choices <- unique(df$layer_disp_name_idx)
@@ -792,21 +800,19 @@ shinyServer(function(input, output, session) {
       try(read_tables(df, input$report_active_layer))
     
     if ("try-error" %in% class(report_active_df)) {
-      # shiny::showNotification("Data could not be loaded", type = "error")
+      # shiny::showNotification("", type = "error")
       return()
     }
     
     # show warning if map active layer has no records
-    shinyFeedback::feedbackWarning("report_active_layer",
-                                   !(nrow(report_active_df) > 0),
+    shinyFeedback::feedbackWarning("report_active_layer",!(nrow(report_active_df) > 0),
                                    "No records in selected layer")
     
     # show warning if map active layer is not spatial (class sf)
-    shinyFeedback::feedbackWarning("report_active_layer",
-                                   !("sf" %in% class(report_active_df)),
+    shinyFeedback::feedbackWarning("report_active_layer",!("sf" %in% class(report_active_df)),
                                    "Not a spatial layer")
     
-    # don't update options if selected layer has no records
+    # don't update options if selected layer has no records or is not spatial
     req(nrow(report_active_df) > 0,
         "sf" %in% class(report_active_df))
     
@@ -827,7 +833,7 @@ shinyServer(function(input, output, session) {
                       choices = choices)
   })
   
-  # select group columns to display in report
+  # select group by columns to display in report
   observe({
     req(report_active_df())
     
@@ -987,14 +993,14 @@ shinyServer(function(input, output, session) {
   observeEvent(input$generate_report, {
     waiter$show()
     
+    data_file$report_raw_table <- report_active_df() %>%
+      sf::st_drop_geometry() %>%
+      as.data.frame()
+    
     # make maps
     # get layer to map
     map_df <- report_active_df() %>%
       dplyr::select(tidyselect::all_of(input$report_vars))
-    
-    data_file$report_raw_table <- report_active_df() %>%
-      sf::st_drop_geometry() %>%
-      as.data.frame()
     
     data_file$report_raw_gpkg <- map_df
     
@@ -1014,15 +1020,24 @@ shinyServer(function(input, output, session) {
     map_df_3857 <- map_df %>%
       sf::st_transform(3857)
     
-    if (input$carto_mask_zeros == TRUE &
-        is.numeric(map_df[[input$report_vars]])) {
-      map_df_3857 <- map_df_3857 %>%
-        dplyr::filter(.data[[input$report_vars]] != 0)
-    } else if (input$carto_mask_zeros == TRUE &
-               (is.character(map_df[[input$report_vars]]) |
-                is.factor(map_df[[input$report_vars]]))) {
-      map_df_3857 <- na.omit(map_df_3857)
+    for (i in seq_along(input$report_vars)) {
+      report_var <- input$report_vars[i]
+      
+      if (input$carto_mask_zeros == TRUE &
+          is.numeric(map_df[[input$report_vars]])) {
+        map_df_3857 <- map_df_3857 %>%
+          dplyr::filter(.data[[input$report_vars]] != 0)
+      } else if (input$carto_mask_zeros == TRUE &
+                 (is.character(map_df[[input$report_vars]]) |
+                  is.factor(map_df[[input$report_vars]]))) {
+        map_df_3857 <- na.omit(map_df_3857)
+      }
+      
     }
+    
+    
+    
+    
     
     # generate cartographic output
     if (is.numeric(map_df[[input$report_vars]])) {

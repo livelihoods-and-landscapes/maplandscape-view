@@ -278,7 +278,7 @@ shinyUI(
         tags$h6("Option to create a bar plot showing the mean, sum, or count of column values within a group."),
         checkboxInput(
           "make_chart",
-          label = "Make summary chart:",
+          label = "Make summary chart?",
           value = FALSE
         ),
         conditionalPanel(
