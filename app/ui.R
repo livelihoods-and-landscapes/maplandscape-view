@@ -26,18 +26,39 @@ shinyUI(
           div(
             class = "mx-auto",
             # login
-            textInput("in_username",
-              "email:",
-              value = "",
-              placeholder = ""
+            # QFieldCloud app URL
+            textInput("qfieldcloud_url",
+                      "QFieldCloud app URL:",
+                      value = "",
+                      placeholder = "tip: omit https:// and trailing /"
             ),
-
-            #  password
-            passwordInput("in_password",
-              "password:",
-              value = "",
-              placeholder = ""
+            
+            # QFieldCloud login
+            textInput("qfieldcloud_username",
+                      "QFieldCloud email:",
+                      value = "",
+                      placeholder = ""
             ),
+            
+            # QFieldCloud password
+            passwordInput("qfieldcloud_password",
+                          "QFieldCloud password:",
+                          value = "",
+                          placeholder = ""
+            ),
+            
+            # textInput("in_username",
+            #   "email:",
+            #   value = "",
+            #   placeholder = ""
+            # ),
+            # 
+            # #  password
+            # passwordInput("in_password",
+            #   "password:",
+            #   value = "",
+            #   placeholder = ""
+            # ),
             actionButton(
               "login",
               htmltools::HTML("login")

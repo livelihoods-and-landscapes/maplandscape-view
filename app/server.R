@@ -24,11 +24,23 @@ shinyServer(function(input, output, session) {
     )
   
   # token is TRUE if the user is logged in successfully
-  # To-Do - move this to use QFieldCloud auth
-  token <- observeEvent(input$login, {
-    if (input$in_username == username & input$in_password == password) {
+  # get QFieldCloud token
+  observeEvent(input$login, {
+    username <- input$qfieldcloud_username
+    password <- input$qfieldcloud_password
+    endpoint <- input$qfieldcloud_url
+    
+    token <- qfieldcloud_login(
+      username,
+      password,
+      endpoint
+    )
+    
+    if (token$status == "success") {
       data_file$token <- TRUE
-      login_message <- paste0("logged in as ", input$in_username)
+      
+      login_message <- paste0("logged in as ", username)
+      
       output$login_status <- renderUI({
         tags$p(login_message)
       })
@@ -41,7 +53,7 @@ shinyServer(function(input, output, session) {
       })
     }
   })
-  
+
   # get a list of GeoPackages in an S3 bucket
   observe({
     req(data_file$token)
