@@ -212,7 +212,7 @@ shinyUI(
               "report_vars",
               "Select column:",
               choices = NULL,
-              multiple = FALSE
+              multiple = TRUE
             )
           )
         ),
@@ -242,6 +242,7 @@ shinyUI(
           ),
           column(
             4,
+            tags$p("Preview will show first selected column."),
             actionButton(
               "preview_map",
               "preview map",

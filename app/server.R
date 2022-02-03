@@ -17,6 +17,9 @@ shinyServer(function(input, output, session) {
       report_summary_table = NULL,
       report_raw_table = NULL,
       report_raw_gpkg = NULL,
+      report_raw_table_dir = NULL,
+      report_raw_gpkg_dir = NULL,
+      report_summary_table_dir = NULL,
       token = NULL # use this to keep track of login status
     )
   
@@ -853,7 +856,7 @@ shinyServer(function(input, output, session) {
   observeEvent(input$preview_map, {
     # get layer to map
     map_df <- report_active_df() %>%
-      dplyr::select(tidyselect::all_of(input$report_vars))
+      dplyr::select(tidyselect::all_of(input$report_vars[1]))
     
     # get basemap
     bbox <- unname(sf::st_bbox(map_df))
@@ -872,22 +875,22 @@ shinyServer(function(input, output, session) {
       sf::st_transform(3857)
     
     if (input$carto_mask_zeros == TRUE &
-        is.numeric(map_df[[input$report_vars]])) {
+        is.numeric(map_df[[input$report_vars[1]]])) {
       map_df_3857 <- map_df_3857 %>%
-        dplyr::filter(.data[[input$report_vars]] != 0)
+        dplyr::filter(.data[[input$report_vars[1]]] != 0)
     } else if (input$carto_mask_zeros == TRUE &
-               (is.character(map_df[[input$report_vars]]) |
-                is.factor(map_df[[input$report_vars]]))) {
+               (is.character(map_df[[input$report_vars[1]]]) |
+                is.factor(map_df[[input$report_vars[1]]]))) {
       map_df_3857 <- na.omit(map_df_3857)
     }
     
     # generate cartographic output
-    if (is.numeric(map_df[[input$report_vars]])) {
+    if (is.numeric(map_df[[input$report_vars[1]]])) {
       gg_map <- ggmap(basemap) +
         coord_sf(crs = st_crs(3857)) + # force the ggplot2 map to be in 3857
         ggplot2::geom_sf(
           data = map_df_3857,
-          ggplot2::aes(fill = .data[[input$report_vars]], color = .data[[input$report_vars]]),
+          ggplot2::aes(fill = .data[[input$report_vars[1]]], color = .data[[input$report_vars[1]]]),
           size = input$carto_line_width,
           inherit.aes = FALSE
         ) +
@@ -903,13 +906,13 @@ shinyServer(function(input, output, session) {
           ),
           axis.text.x = ggplot2::element_text(angle = 90, vjust = 0.1)
         )
-    } else if (is.character(map_df[[input$report_vars]]) |
-               is.factor(map_df[[input$report_vars]])) {
+    } else if (is.character(map_df[[input$report_vars[1]]]) |
+               is.factor(map_df[[input$report_vars[1]]])) {
       gg_map <- ggmap::ggmap(basemap) +
         coord_sf(crs = st_crs(3857)) + # force the ggplot2 map to be in 3857
         ggplot2::geom_sf(
           data = map_df_3857,
-          ggplot2::aes(fill = .data[[input$report_vars]], color = .data[[input$report_vars]]),
+          ggplot2::aes(fill = .data[[input$report_vars[1]]], color = .data[[input$report_vars[1]]]),
           size = input$carto_line_width,
           inherit.aes = FALSE
         ) +
@@ -942,13 +945,13 @@ shinyServer(function(input, output, session) {
     # get layer to map
     chart_df <- report_active_df() %>%
       dplyr::select(tidyselect::all_of(c(
-        input$report_vars, input$report_group_vars
+        input$report_vars[1], input$report_group_vars
       )))
     
     # generate summary table
     summary_df <- group_by_summarise(chart_df,
                                      input$report_group_vars,
-                                     input$report_vars)
+                                     input$report_vars[1])
     
     if (ncol(summary_df) == 2) {
       col_chart_df <- data.frame(summary_df[, 1], summary_df[, 2])
@@ -997,12 +1000,33 @@ shinyServer(function(input, output, session) {
       sf::st_drop_geometry() %>%
       as.data.frame()
     
+    # generate outputs
+    data_file$report_raw_table_dir <- NULL
+    tmp_report_table_dir <- paste0(tempdir(), "/report_raw_data_table.csv")
+    data_file$report_raw_table_dir <- tmp_report_table_dir
+    
+    readr::write_csv(
+      data_file$report_raw_table,
+      tmp_report_table_dir
+    )
+    
     # make maps
     # get layer to map
     map_df <- report_active_df() %>%
       dplyr::select(tidyselect::all_of(input$report_vars))
     
     data_file$report_raw_gpkg <- map_df
+    
+    # generate outputs
+    data_file$report_raw_gpkg_dir <- NULL
+    tmp_report_gpkg_dir <- paste0(tempdir(), "/report_raw_spatial_data.gpkg")
+    data_file$report_raw_gpkg_dir <- tmp_report_gpkg_dir
+    
+    sf::st_write(
+      data_file$report_raw_gpkg,
+      tmp_report_gpkg_dir,
+      delete_dsn = TRUE
+    )
     
     # get basemap
     bbox <- unname(sf::st_bbox(map_df))
@@ -1020,162 +1044,153 @@ shinyServer(function(input, output, session) {
     map_df_3857 <- map_df %>%
       sf::st_transform(3857)
     
+    # remove paths to previous saved maps
+    data_file$report_map <- NULL
+    # remove paths to previous saved charts
+    data_file$report_chart <- NULL
+    # remove paths to previous saved summary tables
+    data_file$report_summary_table <- NULL
+    
     for (i in seq_along(input$report_vars)) {
       report_var <- input$report_vars[i]
       
       if (input$carto_mask_zeros == TRUE &
-          is.numeric(map_df[[input$report_vars]])) {
+          is.numeric(map_df[[report_var]])) {
         map_df_3857 <- map_df_3857 %>%
-          dplyr::filter(.data[[input$report_vars]] != 0)
+          dplyr::filter(.data[[report_var]] != 0)
       } else if (input$carto_mask_zeros == TRUE &
-                 (is.character(map_df[[input$report_vars]]) |
-                  is.factor(map_df[[input$report_vars]]))) {
+                 (is.character(map_df[[report_var]]) |
+                  is.factor(map_df[[report_var]]))) {
         map_df_3857 <- na.omit(map_df_3857)
       }
       
-    }
-    
-    
-    
-    
-    
-    # generate cartographic output
-    if (is.numeric(map_df[[input$report_vars]])) {
-      gg_map <- ggmap(basemap) +
-        coord_sf(crs = st_crs(3857)) + # force the ggplot2 map to be in 3857
-        ggplot2::geom_sf(
-          data = map_df_3857,
-          ggplot2::aes(fill = .data[[input$report_vars]], color = .data[[input$report_vars]]),
-          size = input$carto_line_width,
-          inherit.aes = FALSE
-        ) +
-        ggplot2::scale_fill_viridis_c(option = input$carto_colour) +
-        ggplot2::scale_color_viridis_c(option = input$carto_colour, guide = "none") +
-        theme_bw() +
-        ggplot2::labs(fill = input$report_legend_title) +
-        ggplot2::theme(
-          panel.grid.major = ggplot2::element_line(
-            color = gray(0.5),
-            linetype = "dashed",
-            size = 0.5
-          ),
-          axis.text.x = ggplot2::element_text(angle = 90, vjust = 0.1)
-        )
-    } else if (is.character(map_df[[input$report_vars]]) |
-               is.factor(map_df[[input$report_vars]])) {
-      gg_map <- ggmap::ggmap(basemap) +
-        coord_sf(crs = st_crs(3857)) + # force the ggplot2 map to be in 3857
-        ggplot2::geom_sf(
-          data = map_df_3857,
-          ggplot2::aes(fill = .data[[input$report_vars]], color = .data[[input$report_vars]]),
-          size = input$carto_line_width,
-          inherit.aes = FALSE
-        ) +
-        ggplot2::scale_fill_viridis_d(option = input$carto_colour) +
-        ggplot2::scale_color_viridis_d(option = input$carto_colour, guide = "none") +
-        theme_bw() +
-        ggplot2::labs(fill = input$report_legend_title) +
-        ggplot2::theme(
-          panel.grid.major = ggplot2::element_line(
-            color = gray(0.5),
-            linetype = "dashed",
-            size = 0.5
-          ),
-          axis.text.x = ggplot2::element_text(angle = 90, vjust = 0.1)
-        )
-    }
-    
-    data_file$report_map <- gg_map
-    
-    # make chart
-    
-    # get layer to map
-    if (input$make_chart == TRUE) {
-      chart_df <- report_active_df() %>%
-        dplyr::select(tidyselect::all_of(c(
-          input$report_vars, input$report_group_vars
-        )))
-      
-      # generate summary table
-      summary_df <- group_by_summarise(chart_df,
-                                       input$report_group_vars,
-                                       input$report_vars)
-      
-      data_file$report_summary_table <- summary_df
-      
-      if (ncol(summary_df) == 2) {
-        col_chart_df <- data.frame(summary_df[, 1], summary_df[, 2])
-      } else if (input$bar_plot_type == "count_records") {
-        col_chart_df <- data.frame(summary_df[, 1], summary_df[, 4])
-      } else if (input$bar_plot_type == "mean") {
-        col_chart_df <- data.frame(summary_df[, 1], summary_df[, 2])
-      } else if (input$bar_plot_type == "sum_values") {
-        col_chart_df <- data.frame(summary_df[, 1], summary_df[, 3])
+      # generate cartographic output
+      if (is.numeric(map_df[[report_var]])) {
+        gg_map <- ggmap(basemap) +
+          coord_sf(crs = st_crs(3857)) + # force the ggplot2 map to be in 3857
+          ggplot2::geom_sf(
+            data = map_df_3857,
+            ggplot2::aes(fill = .data[[report_var]], color = .data[[report_var]]),
+            size = input$carto_line_width,
+            inherit.aes = FALSE
+          ) +
+          ggplot2::scale_fill_viridis_c(option = input$carto_colour) +
+          ggplot2::scale_color_viridis_c(option = input$carto_colour, guide = "none") +
+          theme_bw() +
+          ggplot2::labs(fill = input$report_legend_title) +
+          ggplot2::theme(
+            panel.grid.major = ggplot2::element_line(
+              color = gray(0.5),
+              linetype = "dashed",
+              size = 0.5
+            ),
+            axis.text.x = ggplot2::element_text(angle = 90, vjust = 0.1)
+          )
+      } else if (is.character(map_df[[report_var]]) |
+                 is.factor(map_df[[report_var]])) {
+        gg_map <- ggmap::ggmap(basemap) +
+          coord_sf(crs = st_crs(3857)) + # force the ggplot2 map to be in 3857
+          ggplot2::geom_sf(
+            data = map_df_3857,
+            ggplot2::aes(fill = .data[[report_var]], color = .data[[report_var]]),
+            size = input$carto_line_width,
+            inherit.aes = FALSE
+          ) +
+          ggplot2::scale_fill_viridis_d(option = input$carto_colour) +
+          ggplot2::scale_color_viridis_d(option = input$carto_colour, guide = "none") +
+          theme_bw() +
+          ggplot2::labs(fill = input$report_legend_title) +
+          ggplot2::theme(
+            panel.grid.major = ggplot2::element_line(
+              color = gray(0.5),
+              linetype = "dashed",
+              size = 0.5
+            ),
+            axis.text.x = ggplot2::element_text(angle = 90, vjust = 0.1)
+          )
       }
       
-      gg_chart <-
-        ggplot2::ggplot(data = col_chart_df, ggplot2::aes(col_chart_df[, 1], col_chart_df[, 2])) +
-        ggplot2::geom_col(color = "#000000", fill = "#000000") +
-        ggplot2::xlab(input$x_lab) +
-        ggplot2::ylab(input$y_lab) +
-        ggplot2::theme(
-          plot.background = ggplot2::element_rect(fill = NA, colour = NA),
-          panel.background = ggplot2::element_rect(fill = NA, colour = "#000000"),
-          axis.text.x = ggplot2::element_text(
-            angle = -90,
-            vjust = 1,
-            hjust = 0,
-            size = input$font
-          ),
-          axis.text.y = ggplot2::element_text(size = input$font),
-          axis.title.x = ggplot2::element_text(size = input$font),
-          axis.title.y = ggplot2::element_text(size = input$font)
-        )
-      
-      data_file$report_chart <- gg_chart
-    }
-    
-    # generate outputs
-    
-    readr::write_csv(
-      data_file$report_raw_table,
-      paste0(tempdir(), "/", input$report_vars, "_raw_data_table.csv")
-    )
-    sf::st_write(
-      data_file$report_raw_gpkg,
-      paste0(
-        tempdir(),
-        "/",
-        input$report_vars,
-        "_raw_spatial_data.gpkg"
-      ),
-      delete_dsn = TRUE
-    )
-    
-    ggplot2::ggsave(
-      paste0(tempdir(), "/", input$report_vars, "_report_map.png"),
-      data_file$report_map,
-      dpi = 300,
-      units = "cm",
-      width = 30,
-      height = 30
-    )
-    
-    if (input$make_chart == TRUE) {
-      readr::write_csv(
-        data_file$report_summary_table,
-        paste0(tempdir(), "/", input$report_vars, "_summary_table.csv")
-      )
-      
+      tmp_map_dir <- paste0(tempdir(), "/", report_var, "_report_map.png")
       ggplot2::ggsave(
-        paste0(tempdir(), "/", input$report_vars, "_report_chart.png"),
-        data_file$report_chart,
+        tmp_map_dir,
+        gg_map,
         dpi = 300,
         units = "cm",
         width = 30,
-        height = 20
+        height = 30
       )
+      
+      # temporary location to store current ggmap
+      data_file$report_map <- c(data_file$report_map, tmp_map_dir)
+      
+      # make charts
+      # get layer to chart
+      if (input$make_chart == TRUE) {
+        chart_df <- report_active_df() %>%
+          dplyr::select(tidyselect::all_of(c(
+            report_var, input$report_group_vars
+          )))
+        
+        # generate summary table
+        summary_df <- group_by_summarise(chart_df,
+                                         input$report_group_vars,
+                                         report_var)
+        
+        if (ncol(summary_df) == 2) {
+          col_chart_df <- data.frame(summary_df[, 1], summary_df[, 2])
+        } else if (input$bar_plot_type == "count_records") {
+          col_chart_df <- data.frame(summary_df[, 1], summary_df[, 4])
+        } else if (input$bar_plot_type == "mean") {
+          col_chart_df <- data.frame(summary_df[, 1], summary_df[, 2])
+        } else if (input$bar_plot_type == "sum_values") {
+          col_chart_df <- data.frame(summary_df[, 1], summary_df[, 3])
+        }
+        
+        gg_chart <-
+          ggplot2::ggplot(data = col_chart_df, ggplot2::aes(col_chart_df[, 1], col_chart_df[, 2])) +
+          ggplot2::geom_col(color = "#000000", fill = "#000000") +
+          ggplot2::xlab(input$x_lab) +
+          ggplot2::ylab(input$y_lab) +
+          ggplot2::theme(
+            plot.background = ggplot2::element_rect(fill = NA, colour = NA),
+            panel.background = ggplot2::element_rect(fill = NA, colour = "#000000"),
+            axis.text.x = ggplot2::element_text(
+              angle = -90,
+              vjust = 1,
+              hjust = 0,
+              size = input$font
+            ),
+            axis.text.y = ggplot2::element_text(size = input$font),
+            axis.title.x = ggplot2::element_text(size = input$font),
+            axis.title.y = ggplot2::element_text(size = input$font)
+          )
+        
+        tmp_chart_dir <- paste0(tempdir(), "/", report_var, "_report_chart.png")
+        ggplot2::ggsave(
+          tmp_chart_dir,
+          gg_chart,
+          dpi = 300,
+          units = "cm",
+          width = 30,
+          height = 20
+        )
+        
+        
+        data_file$report_chart <- c(data_file$report_chart, tmp_chart_dir)
+        
+        # save summary table
+        
+        tmp_sum_table_dir <- paste0(tempdir(), "/", report_var, "_summary_table.csv")
+        data_file$report_summary_table_dir <- c(data_file$report_summary_table_dir, tmp_sum_table_dir)
+        
+        readr::write_csv(
+          summary_df,
+          tmp_sum_table_dir
+        )
+
+      }
     }
+
     waiter$hide()
   })
   
@@ -1185,22 +1200,13 @@ shinyServer(function(input, output, session) {
       paste("report_", dt(), ".zip", sep = "")
     },
     content = function(file) {
-      raw_table <-
-        paste0(tempdir(), "/", input$report_vars, "_raw_data_table.csv")
-      map <-
-        paste0(tempdir(), "/", input$report_vars, "_report_map.png")
-      gpkg <-
-        paste0(tempdir(),
-               "/",
-               input$report_vars,
-               "_raw_spatial_data.gpkg")
-      
+      raw_table <- data_file$report_raw_table_dir
+      map <- data_file$report_map
+      gpkg <- data_file$report_raw_gpkg_dir
+
       if (input$make_chart == TRUE) {
-        chart <-
-          paste0(tempdir(), "/", input$report_vars, "_report_chart.png")
-        summary_table <-
-          paste0(tempdir(), "/", input$report_vars, "_summary_table.csv")
-        
+        chart <- data_file$report_chart
+        summary_table <- data_file$report_summary_table_dir
         zip(
           zipfile = file,
           files = c(summary_table, raw_table, map, chart, gpkg),
