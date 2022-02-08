@@ -1,4 +1,5 @@
 # install packages
+# use renv
 
 packages <- c(
   "bslib",
