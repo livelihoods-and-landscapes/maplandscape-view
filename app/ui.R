@@ -19,7 +19,7 @@ shinyUI(
           style = "min-height: 25%; min-height: 25vh;"
         ),
         fluidRow(
-          tags$h1("Tonga Crop Survey", class = "mx-auto text-center"),
+          tags$h1(title, class = "mx-auto text-center"),
           class = "justify-content-center"
         ),
         fluidRow(
@@ -27,11 +27,11 @@ shinyUI(
             class = "mx-auto",
             # login
             # QFieldCloud app URL
-            textInput("qfieldcloud_url",
-                      "QFieldCloud app URL:",
-                      value = "",
-                      placeholder = "tip: omit https:// and trailing /"
-            ),
+            # textInput("qfieldcloud_url",
+            #           "QFieldCloud app URL:",
+            #           value = "",
+            #           placeholder = "tip: omit https:// and trailing /"
+            # ),
             
             # QFieldCloud login
             textInput("qfieldcloud_username",

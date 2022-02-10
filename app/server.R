@@ -28,7 +28,7 @@ shinyServer(function(input, output, session) {
   observeEvent(input$login, {
     username <- input$qfieldcloud_username
     password <- input$qfieldcloud_password
-    endpoint <- input$qfieldcloud_url
+    endpoint <- qfieldcloud_url
     
     token <- qfieldcloud_login(
       username,

@@ -22,6 +22,9 @@ library(ggplot2)
 # config
 config <- config::get()
 
+# app title
+title <- config$title
+
 # OAuth config
 oauth_redirect_url <- config$oauth_redirect_url
 oauth_key <- config$oauth_key
@@ -45,6 +48,9 @@ Sys.setenv("AWS_ACCESS_KEY_ID" = aws_key,
 # simple authentication
 username <- config$simple_username
 password <- config$simple_password
+
+# qfieldcloud
+qfieldcloud_url <- config$qfieldcloud
 
 # custom xyz basemap
 custom_xyz <- config$custom_xyz
