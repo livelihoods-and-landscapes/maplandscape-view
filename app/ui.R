@@ -3,7 +3,7 @@
 shinyUI(
   navbarPage(
     position = "fixed-top",
-    theme = bslib::bs_theme(bootswatch = "pulse"),
+    theme = bslib::bs_theme(version = 4, bootswatch = "pulse"),
     "",
     collapsible = TRUE,
     id = "navbar",
@@ -76,11 +76,10 @@ shinyUI(
       leaflet::leafletOutput("map"),
       absolutePanel(
         class = "sidePanel",
-        top = "55px",
+        top = "75px",
         left = "0px",
         width = "250px",
         height = "100vh",
-        h5("Map options"),
         actionButton(
           "draw_map",
           "Update map",
@@ -154,12 +153,10 @@ shinyUI(
       shinyFeedback::useShinyFeedback(),
       absolutePanel(
         class = "sidePanel",
-        top = "55px",
+        top = "75px",
         left = "0px",
         width = "250px",
         height = "100vh",
-        h5("Table options"),
-        uiOutput("table_login_button"),
         selectInput(
           "table_s3_bucket_objects",
           "Select dataset:",
