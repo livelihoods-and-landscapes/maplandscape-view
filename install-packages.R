@@ -22,6 +22,7 @@ packages <- c(
   "ggmap",
   "aws.s3",
   "config",
-  "ggplot2")
+  "ggplot2",
+  "plotly")
 
 renv::install(packages)

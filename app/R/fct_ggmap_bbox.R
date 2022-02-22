@@ -9,9 +9,9 @@ ggmap_bbox <- function(map) {
     c("ymin", "xmin", "ymax", "xmax")
   )
 
-  # Coonvert the bbox to an sf polygon, transform it to 3857,
+  # Convert the bbox to an sf polygon, transform it to 3857,
   # and convert back to a bbox (convoluted, but it works)
-  bbox_3857 <- st_bbox(st_transform(st_as_sfc(st_bbox(map_bbox, crs = 4326)), 3857))
+  bbox_3857 <- sf::st_bbox(sf::st_transform(sf::st_as_sfc(sf::st_bbox(map_bbox, crs = 4326)), 3857))
 
   # Overwrite the bbox of the ggmap object with the transformed coordinates
   attr(map, "bb")$ll.lat <- bbox_3857["ymin"]

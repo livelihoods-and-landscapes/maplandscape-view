@@ -32,27 +32,27 @@ shinyUI(
             #           value = "",
             #           placeholder = "tip: omit https:// and trailing /"
             # ),
-            
+
             # QFieldCloud login
             textInput("qfieldcloud_username",
-                      "QFieldCloud email:",
-                      value = "",
-                      placeholder = ""
+              "QFieldCloud email:",
+              value = "",
+              placeholder = ""
             ),
-            
+
             # QFieldCloud password
             passwordInput("qfieldcloud_password",
-                          "QFieldCloud password:",
-                          value = "",
-                          placeholder = ""
+              "QFieldCloud password:",
+              value = "",
+              placeholder = ""
             ),
-            
+
             # textInput("in_username",
             #   "email:",
             #   value = "",
             #   placeholder = ""
             # ),
-            # 
+            #
             # #  password
             # passwordInput("in_password",
             #   "password:",
@@ -248,6 +248,14 @@ shinyUI(
                 "inferno" = "inferno",
                 "cividis" = "cividis"
               )
+            ),
+            div(
+              class = "mx-auto",
+              plotOutput(
+                "colour_ramp", 
+                width = "50%", 
+                height = "30px"
+              )
             )
           ),
           column(
@@ -269,6 +277,7 @@ shinyUI(
           )
         ),
         fluidRow(
+          class = "mt-2",
           column(
             4,
             tags$p("Check box to remove zero values or NA values from the map:"),
@@ -290,7 +299,13 @@ shinyUI(
             )
           ),
           column(
-            4
+            4,
+            tags$p("Customise and download interactive map."),
+            actionButton(
+              "custom_map",
+              "customise map",
+              class = "btn-primary m-2"
+            )
           )
         ),
         tags$h5("Summary chart styling options"),

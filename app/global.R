@@ -18,6 +18,8 @@ library(ggmap)
 library(aws.s3)
 library(config)
 library(ggplot2)
+library(plotly)
+library(qfieldcloudR)
 
 # config
 config <- config::get()
@@ -51,6 +53,7 @@ password <- config$simple_password
 
 # qfieldcloud
 qfieldcloud_url <- config$qfieldcloud
+project_id <- config$project_id
 
 # custom xyz basemap
 custom_xyz <- config$custom_xyz

@@ -13,4 +13,5 @@ default:
   custom_xyz: ""
   custom_xyz_name: ""
   qfieldcloud: ""
+  project_id: ""
   title: ""
