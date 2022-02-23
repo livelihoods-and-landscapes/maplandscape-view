@@ -2,6 +2,12 @@
 # Use RStudio Docker - https://github.com/rstudio/r-docker
 FROM jmad1v07/maplandscape-base-4.1.2
 
+## install required R packages
+RUN R -e 'install.packages(c("devtools", "plotly"), \
+  repos="http://cran.rstudio.com/")'
+
+RUN R -e 'devtools::install_github("livelihoods-and-landscapes/qfieldcloudR")'
+
 # copy necessary files
 RUN mkdir /root/app
 COPY /app/server.R /root/app/
