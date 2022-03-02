@@ -41,7 +41,7 @@ shinyServer(function(input, output, session) {
     username <- input$qfieldcloud_username
     password <- input$qfieldcloud_password
     endpoint <- qfieldcloud_url
-
+    
     token <- qfieldcloudR::qfieldcloud_login(
       username,
       password,
@@ -77,32 +77,34 @@ shinyServer(function(input, output, session) {
         showNotification("Could not load project files.", type = "error")
       },
       {
+        
         # get project files
         data_file$project_files <- qfieldcloudR::get_qfieldcloud_files(
           data_file$token,
           qfieldcloud_url,
           project_id
         )
+        
+        if (!is.null(data_file$project_files) & nrow(data_file$project_files) > 0) {
+          items <- data_file$project_files$name
+          
+          # keep only GeoPackages - we don't want to view .qgs files
+          items <- stringr::str_subset(items, ".gpkg$")
+          
+          # these are checks specific to working with Tonga Crop Survey data
+          # avoid showing some Tonga Crop Survey data files to the user
+          items <- stringr::str_subset(items, "^sync", negate = TRUE)
+          items <-
+            stringr::str_subset(items, "-outline.gpkg$", negate = TRUE)
+          items <-
+            stringr::str_subset(items, "-boundaries.gpkg$", negate = TRUE)
+          data_file$items <- items
+        }
+        
+        
       }
     )
 
-    items <- NULL
-
-    if (!is.null(data_file$project_files) & nrow(data_file$project_files) > 0) {
-      items <- data_file$project_files$name
-
-      # keep only GeoPackages - we don't want to view .qgs files
-      items <- stringr::str_subset(items, ".gpkg$")
-
-      # these are checks specific to working with Tonga Crop Survey data
-      # avoid showing some Tonga Crop Survey data files to the user
-      items <- stringr::str_subset(items, "^sync", negate = TRUE)
-      items <-
-        stringr::str_subset(items, "-outline.gpkg$", negate = TRUE)
-      items <-
-        stringr::str_subset(items, "-boundaries.gpkg$", negate = TRUE)
-      data_file$items <- items
-    }
   })
 
   # update select input on map tab with list of objects in S3 bucket
