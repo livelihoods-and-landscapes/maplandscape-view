@@ -25,40 +25,18 @@ shinyUI(
         fluidRow(
           div(
             class = "mx-auto",
-            # login
-            # QFieldCloud app URL
-            # textInput("qfieldcloud_url",
-            #           "QFieldCloud app URL:",
-            #           value = "",
-            #           placeholder = "tip: omit https:// and trailing /"
-            # ),
-
             # QFieldCloud login
             textInput("qfieldcloud_username",
               "QFieldCloud email:",
               value = "",
               placeholder = ""
             ),
-
             # QFieldCloud password
             passwordInput("qfieldcloud_password",
               "QFieldCloud password:",
               value = "",
               placeholder = ""
             ),
-
-            # textInput("in_username",
-            #   "email:",
-            #   value = "",
-            #   placeholder = ""
-            # ),
-            #
-            # #  password
-            # passwordInput("in_password",
-            #   "password:",
-            #   value = "",
-            #   placeholder = ""
-            # ),
             actionButton(
               "login",
               htmltools::HTML("login")
@@ -80,10 +58,13 @@ shinyUI(
         left = "0px",
         width = "250px",
         height = "100vh",
-        actionButton(
-          "draw_map",
-          "Update map",
-          class = "btn-primary m-2"
+        div(
+          class = "d-flex justify-content-center",
+          actionButton(
+            "draw_map",
+            "Update map",
+            class = "btn m-2"
+          ),
         ),
         selectInput(
           "s3_bucket_objects",
@@ -142,11 +123,11 @@ shinyUI(
           choices = line_colours
         )
       ),
-      downloadButton(
-        "download_map_data",
-        "Download map",
-        class = "btn-primary m-2"
-      )
+      # downloadButton(
+      #   "download_map_data",
+      #   "Download map",
+      #   class = "btn-primary m-2"
+      # )
     ),
     tabPanel(
       "Table",
@@ -178,7 +159,7 @@ shinyUI(
         downloadButton(
           "download_csv_data",
           "download table",
-          class = "btn-primary m-2"
+          class = "btn m-2"
         )
       ),
       absolutePanel(
@@ -197,12 +178,12 @@ shinyUI(
         actionButton(
           "generate_report",
           "generate report",
-          class = "btn-primary m-2"
+          class = "btn m-2"
         ),
         downloadButton(
           "download_report",
           "download",
-          class = "btn-primary m-2"
+          class = "btn m-2"
         ),
         tags$h5("Select data"),
         fluidRow(
@@ -272,7 +253,7 @@ shinyUI(
             actionButton(
               "preview_map",
               "preview map",
-              class = "btn-primary m-2"
+              class = "btn m-2"
             )
           )
         ),
@@ -304,7 +285,7 @@ shinyUI(
             actionButton(
               "custom_map",
               "customise map",
-              class = "btn-primary m-2"
+              class = "btn m-2"
             )
           )
         ),
@@ -343,7 +324,7 @@ shinyUI(
               actionButton(
                 "preview_chart",
                 "preview chart",
-                class = "btn-primary m-2"
+                class = "btn m-2"
               )
             )
           ),

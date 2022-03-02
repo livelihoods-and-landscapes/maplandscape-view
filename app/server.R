@@ -1048,7 +1048,7 @@ shinyServer(function(input, output, session) {
     # get layer to map
     map_df <- report_active_df() %>%
       dplyr::select(tidyselect::all_of(input$report_vars[1]))
-
+    
     # get basemap
     bbox <- unname(sf::st_bbox(map_df))
     basemap <-
@@ -1126,7 +1126,8 @@ shinyServer(function(input, output, session) {
         plotly::layout(
           xaxis = list(autorange = TRUE),
           yaxis = list(autorange = TRUE)
-        )
+        ) %>%
+        plotly::toWebGL()
     })
 
     # preview map
