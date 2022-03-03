@@ -96,8 +96,8 @@ shinyServer(function(input, output, session) {
           items <- stringr::str_subset(items, "^sync", negate = TRUE)
           items <-
             stringr::str_subset(items, "-outline.gpkg$", negate = TRUE)
-          items <-
-            stringr::str_subset(items, "-boundaries.gpkg$", negate = TRUE)
+          # items <-
+          #   stringr::str_subset(items, "-boundaries.gpkg$", negate = TRUE)
           data_file$items <- items
         }
         
