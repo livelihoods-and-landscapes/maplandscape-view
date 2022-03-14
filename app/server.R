@@ -2,13 +2,13 @@ shinyServer(function(input, output, session) {
   # waiting screen
   waiter <- waiter::Waiter$new(
     html = loading_screen,
-    color = "rgba(255,255,254,.5)"
+    color = "rgba(89,49,150,.6)"
   )
 
   # waiting screen for loading map
   map_waiter <- waiter::Waiter$new(
     html = map_screen,
-    color = transparent(0.25)
+    color = "rgba(89,49,150,.6)"
   )
 
   # app data
