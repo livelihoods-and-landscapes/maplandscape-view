@@ -239,7 +239,7 @@ shinyServer(function(input, output, session) {
 
     # round numeric values for clearer display
     map_active_df <- map_active_df %>%
-      dplyr::mutate(dplyr::across(is.numeric,
+      dplyr::mutate(dplyr::across(where(is.numeric),
         round,
         digits = 4
       ))
@@ -771,7 +771,7 @@ shinyServer(function(input, output, session) {
     req(view_df())
     view_df <- view_df()
     view_df <- view_df %>%
-      dplyr::mutate(dplyr::across(is.numeric,
+      dplyr::mutate(dplyr::across(where(is.numeric),
         round,
         digits = 4
       ))
