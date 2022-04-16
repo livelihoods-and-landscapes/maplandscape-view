@@ -473,7 +473,7 @@ shinyServer(function(input, output, session) {
             sf::st_shift_longitude()
           
           add_layers_leaflet_no_zoom(
-            map_object = "web_map",
+            map_object = "map",
             map_active_df = map_df,
             map_var = input$map_var,
             map_colour = input$map_colour,
@@ -491,8 +491,6 @@ shinyServer(function(input, output, session) {
     req(map_active_df())
     req(input$label_vars)
     
-    leaflet::leafletProxy("web_map") %>% leaflet::clearPopups()
-    
     if (data_file$map_drawn == 1) {
       if ("sf" %in% class(map_active_df()) &
           is.atomic(map_active_df()[[input$map_var]]) &
@@ -504,7 +502,7 @@ shinyServer(function(input, output, session) {
           },
           {
             add_layers_leafgl_popups(
-              map_object = "web_map",
+              map_object = "map",
               map_active_df = map_active_df(),
               map_var = input$map_var,
               map_colour = input$map_colour,
