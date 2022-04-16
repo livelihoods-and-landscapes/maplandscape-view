@@ -14,7 +14,7 @@ shinyUI(
         tags$link(rel = "stylesheet", type = "text/css", href = "style.css")
       ),
       fluidPage(
-        id = "homePage",
+        # id = "homePage",
         fluidRow(
           style = "min-height: 25%; min-height: 25vh;"
         ),
@@ -51,7 +51,7 @@ shinyUI(
       "Map",
       shinyFeedback::useShinyFeedback(),
       waiter::use_waiter(),
-      leaflet::leafletOutput("map"),
+      leafgl::leafglOutput("map"),
       absolutePanel(
         class = "sidePanel",
         top = "75px",
@@ -89,6 +89,14 @@ shinyUI(
           choices = NULL,
           multiple = TRUE
         ),
+        div(
+          class = "d-flex justify-content-center",
+          actionButton(
+            "add_popups",
+            "Add popups to map",
+            class = "btn m-2"
+          ),
+        ),
         checkboxInput(
           "mask_zero",
           label = "Mask zeros.",
@@ -99,30 +107,20 @@ shinyUI(
           label = "Add legend.",
           value = FALSE
         ),
-        textInput(
-          "map_legend_title",
-          "Legend title:",
-          value = ""
-        ),
         selectInput(
           "map_colour",
           "Fill colour:",
           choices = colour_mappings
-        ),
-        numericInput(
-          "map_line_width",
-          "Line width:",
-          0.1,
-          min = 0,
-          max = 2,
-          step = 0.1
-        ),
-        selectInput(
-          "map_line_colour",
-          "Select line colour:",
-          choices = line_colours
         )
       ),
+      div(
+        class = "d-flex justify-content-center",
+        actionButton(
+          "recenter_map",
+          "Recenter map",
+          class = "btn m-2"
+        ),
+      )
       # downloadButton(
       #   "download_map_data",
       #   "Download map",
@@ -212,80 +210,6 @@ shinyUI(
               "Select column:",
               choices = NULL,
               multiple = TRUE
-            )
-          )
-        ),
-        tags$h5("Map styling options"),
-        fluidRow(
-          column(
-            4,
-            selectInput(
-              "carto_colour",
-              "Select fill colour:",
-              choices = c(
-                "plasma" = "plasma",
-                "magma" = "magma",
-                "viridis" = "viridis",
-                "inferno" = "inferno",
-                "cividis" = "cividis"
-              )
-            ),
-            div(
-              class = "mx-auto",
-              plotOutput(
-                "colour_ramp", 
-                width = "50%", 
-                height = "30px"
-              )
-            )
-          ),
-          column(
-            4,
-            textInput(
-              "report_legend_title",
-              "Legend title:",
-              value = ""
-            )
-          ),
-          column(
-            4,
-            tags$p("Preview will show first selected column."),
-            actionButton(
-              "preview_map",
-              "preview map",
-              class = "btn m-2"
-            )
-          )
-        ),
-        fluidRow(
-          class = "mt-2",
-          column(
-            4,
-            tags$p("Check box to remove zero values or NA values from the map:"),
-            checkboxInput(
-              "carto_mask_zeros",
-              "Mask zeros.",
-              value = TRUE
-            )
-          ),
-          column(
-            4,
-            numericInput(
-              "carto_line_width",
-              "Line width (increase to highlight small features):",
-              0,
-              step = 0.1,
-              min = 0,
-              max = 2
-            )
-          ),
-          column(
-            4,
-            tags$p("Customise and download interactive map."),
-            actionButton(
-              "custom_map",
-              "customise map",
-              class = "btn m-2"
             )
           )
         ),

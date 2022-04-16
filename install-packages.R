@@ -23,6 +23,8 @@ packages <- c(
   "aws.s3",
   "config",
   "ggplot2",
-  "plotly")
+  "plotly",
+  "livelihoods-and-landscapes/qfieldcloudR",
+  "livelihoods-and-landscapes/leafgl")
 
 renv::install(packages)

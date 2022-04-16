@@ -2,13 +2,19 @@ shinyServer(function(input, output, session) {
   # waiting screen
   waiter <- waiter::Waiter$new(
     html = loading_screen,
-    color = "rgba(255,255,254,.5)"
+    color = "rgba(89,49,150,.6)"
   )
 
   # waiting screen for loading map
   map_waiter <- waiter::Waiter$new(
     html = map_screen,
-    color = transparent(0.25)
+    color = "rgba(89,49,150,.6)"
+  )
+  
+  # waiting screen for logging in
+  login_waiter <- waiter::Waiter$new(
+    html = login_screen,
+    color = "rgba(89,49,150,.6)"
   )
 
   # app data
@@ -42,6 +48,8 @@ shinyServer(function(input, output, session) {
     password <- input$qfieldcloud_password
     endpoint <- qfieldcloud_url
     
+    login_waiter$show()
+    
     token <- qfieldcloudR::qfieldcloud_login(
       username,
       password,
@@ -64,6 +72,8 @@ shinyServer(function(input, output, session) {
         tags$p(login_message)
       })
     }
+    
+    login_waiter$hide()
   })
 
 
@@ -71,6 +81,7 @@ shinyServer(function(input, output, session) {
   observe({
     req(data_file$token)
 
+    
     # get project files
     tryCatch(
       error = function(cnd) {
@@ -139,6 +150,7 @@ shinyServer(function(input, output, session) {
         showNotification("Could not load project files.", type = "error")
       },
       {
+        
         s3_gpkg <- qfieldcloudR::get_qfieldcloud_file(
           data_file$token,
           qfieldcloud_url,
@@ -342,9 +354,6 @@ shinyServer(function(input, output, session) {
             map_active_df = map_active_df(),
             map_var = input$map_var,
             map_colour = input$map_colour,
-            opacity = 0.8,
-            map_line_width = input$map_line_width,
-            map_line_colour = input$map_line_colour,
             waiter = map_waiter,
             mask_zero = input$mask_zero,
             base_group = data_file$base_group
@@ -370,9 +379,6 @@ shinyServer(function(input, output, session) {
             map_active_df = map_active_df(),
             map_var = input$map_var,
             map_colour = input$map_colour,
-            opacity = 0.8,
-            map_line_width = input$map_line_width,
-            map_line_colour = input$map_line_colour,
             waiter = map_waiter,
             mask_zero = input$mask_zero,
             base_group = data_file$base_group
@@ -411,65 +417,6 @@ shinyServer(function(input, output, session) {
             map_active_df = map_active_df(),
             map_var = input$map_var,
             map_colour = input$map_colour,
-            opacity = 0.8,
-            map_line_width = input$map_line_width,
-            map_line_colour = input$map_line_colour,
-            waiter = map_waiter,
-            mask_zero = input$mask_zero,
-            base_group = data_file$base_group
-          )
-        }
-      )
-    }
-  })
-
-  # update line width
-  observeEvent(input$map_line_width, {
-    req(map_active_df())
-    req(input$map_var)
-
-    if (data_file$map_drawn == 1) {
-      tryCatch(
-        error = function(cnd) {
-          shiny::showNotification("Could not render map.", type = "error")
-        },
-        {
-          add_layers_leaflet_no_zoom(
-            map_object = "map",
-            map_active_df = map_active_df(),
-            map_var = input$map_var,
-            map_colour = input$map_colour,
-            opacity = 0.8,
-            map_line_width = input$map_line_width,
-            map_line_colour = input$map_line_colour,
-            waiter = map_waiter,
-            mask_zero = input$mask_zero,
-            base_group = data_file$base_group
-          )
-        }
-      )
-    }
-  })
-
-  # update line colour
-  observeEvent(input$map_line_colour, {
-    req(map_active_df())
-    req(input$map_var)
-
-    if (data_file$map_drawn == 1) {
-      tryCatch(
-        error = function(cnd) {
-          shiny::showNotification("Could not render map.", type = "error")
-        },
-        {
-          add_layers_leaflet_no_zoom(
-            map_object = "map",
-            map_active_df = map_active_df(),
-            map_var = input$map_var,
-            map_colour = input$map_colour,
-            opacity = 0.8,
-            map_line_width = input$map_line_width,
-            map_line_colour = input$map_line_colour,
             waiter = map_waiter,
             mask_zero = input$mask_zero,
             base_group = data_file$base_group
@@ -495,9 +442,6 @@ shinyServer(function(input, output, session) {
             map_active_df = map_active_df(),
             map_var = input$map_var,
             map_colour = input$map_colour,
-            opacity = 0.8,
-            map_line_width = input$map_line_width,
-            map_line_colour = input$map_line_colour,
             waiter = map_waiter,
             mask_zero = input$mask_zero,
             base_group = data_file$base_group
@@ -511,48 +455,71 @@ shinyServer(function(input, output, session) {
       value = FALSE
     )
   })
-
-  # add popup labels
-  observeEvent(input$map_shape_click, {
-    leaflet::leafletProxy("map") %>% clearPopups()
-
-    # capture click events
-    # event_shape captures a user click on a shape object
-    # event_marker captures a user click on a marker object
-    event_shape <- input$map_shape_click
-    event_marker <- input$map_marker_click
-
-    # if a user has not clicked on a marker or object leave event as null if a
-    # user has clicked on a shape or marker update event and pass it into
-    # fct_add_popups to create popup for clicked object
-    event <- NULL
-
-    if (!is.null(event_shape)) {
-      event <- event_shape
+  
+  # recenter map if crossing antimeridian
+  observeEvent(input$recenter_map, {
+    req(map_active_df())
+    req("sf" %in% class(map_active_df()))
+    
+    if (data_file$map_drawn == 1) {
+      tryCatch(
+        error = function(cnd) {
+          showNotification("Failed to draw map. Check data is spatial.", type = "error")
+          return()
+        },
+        {
+          map_df <- map_active_df() %>%
+            sf::st_transform(4326) %>%
+            sf::st_shift_longitude()
+          
+          add_layers_leaflet_no_zoom(
+            map_object = "web_map",
+            map_active_df = map_df,
+            map_var = input$map_var,
+            map_colour = input$map_colour,
+            waiter = map_waiter,
+            mask_zero = input$mask_zero,
+            base_group = data_file$base_group
+          )
+        }
+      )
     }
-
-    if (!is.null(event_marker)) {
-      event <- event_marker
-    }
-
-    if (is.null(event)) {
-      return()
-    }
-
-    isolate({
-      req(input$label_vars)
-
-      content <-
-        add_popups(
-          in_df = map_active_df,
-          layer_id = event$id,
-          label_vars = input$label_vars
-        )
-
-      leaflet::leafletProxy("map") %>%
-        leaflet::addPopups(event$lng, event$lat, content, layerId = event$id)
-    })
   })
+  
+  # add popup labels
+  observeEvent(input$add_popups, {
+    req(map_active_df())
+    req(input$label_vars)
+    
+    leaflet::leafletProxy("web_map") %>% leaflet::clearPopups()
+    
+    if (data_file$map_drawn == 1) {
+      if ("sf" %in% class(map_active_df()) &
+          is.atomic(map_active_df()[[input$map_var]]) &
+          nrow(map_active_df()) > 0) {
+        tryCatch(
+          error = function(cnd) {
+            showNotification("Failed to draw map. Check data is spatial.", type = "error")
+            return()
+          },
+          {
+            add_layers_leafgl_popups(
+              map_object = "web_map",
+              map_active_df = map_active_df(),
+              map_var = input$map_var,
+              map_colour = input$map_colour,
+              popups = input$label_vars,
+              waiter = map_waiter,
+              mask_zero = input$mask_zero,
+              base_group = data_file$base_group
+            )
+            
+          }
+        )
+      }
+    }
+  })
+  
 
   # remove legend and reset map on selecting a new column
   observeEvent(input$map_var, {
@@ -941,213 +908,11 @@ shinyServer(function(input, output, session) {
     )
   })
 
-  # show colour palette
-  observeEvent(input$carto_colour, {
-    colour_ramp <- make_colour_ramp_viridis(input$carto_colour)
-
-    output$colour_ramp <- renderPlot({
-      colour_ramp
-    })
-  })
-
-  # preview map
-  observeEvent(input$preview_map, {
-    req(input$report_vars)
-
-    # get layer to map
-    map_df <- report_active_df() %>%
-      dplyr::select(tidyselect::all_of(input$report_vars[1]))
-
-    # get basemap
-    bbox <- unname(sf::st_bbox(map_df))
-    basemap <-
-      ggmap::get_map(
-        location = bbox,
-        source = "osm",
-        color = "bw",
-        force = TRUE,
-        zoom = 10
-      )
-
-    basemap <- ggmap_bbox(basemap)
-
-    map_df_3857 <- map_df %>%
-      sf::st_transform(3857)
-
-    if (input$carto_mask_zeros == TRUE &
-      is.numeric(map_df[[input$report_vars[1]]])) {
-      map_df_3857 <- map_df_3857 %>%
-        dplyr::filter(.data[[input$report_vars[1]]] != 0)
-    } else if (input$carto_mask_zeros == TRUE &
-      (is.character(map_df[[input$report_vars[1]]]) |
-        is.factor(map_df[[input$report_vars[1]]]))) {
-      map_df_3857 <- na.omit(map_df_3857)
-    }
-
-    # generate cartographic output
-    if (is.numeric(map_df[[input$report_vars[1]]])) {
-      gg_map <- ggmap::ggmap(basemap) +
-        ggplot2::coord_sf(crs = sf::st_crs(3857)) + # force the ggplot2 map to be in 3857
-        ggplot2::geom_sf(
-          data = map_df_3857,
-          ggplot2::aes(fill = .data[[input$report_vars[1]]], color = .data[[input$report_vars[1]]]),
-          size = input$carto_line_width,
-          inherit.aes = FALSE
-        ) +
-        ggplot2::scale_fill_viridis_c(option = input$carto_colour) +
-        ggplot2::scale_color_viridis_c(option = input$carto_colour, guide = "none") +
-        ggplot2::theme_bw() +
-        ggplot2::labs(fill = input$report_legend_title) +
-        ggplot2::theme(
-          panel.grid.major = ggplot2::element_line(
-            color = gray(0.5),
-            linetype = "dashed",
-            size = 0.5
-          ),
-          axis.text.x = ggplot2::element_text(angle = 90, vjust = 0.1)
-        )
-    } else if (is.character(map_df[[input$report_vars[1]]]) |
-      is.factor(map_df[[input$report_vars[1]]])) {
-      gg_map <- ggmap::ggmap(basemap) +
-        ggplot2::coord_sf(crs = sf::st_crs(3857)) + # force the ggplot2 map to be in 3857
-        ggplot2::geom_sf(
-          data = map_df_3857,
-          ggplot2::aes(fill = .data[[input$report_vars[1]]], color = .data[[input$report_vars[1]]]),
-          size = input$carto_line_width,
-          inherit.aes = FALSE
-        ) +
-        ggplot2::scale_fill_viridis_d(option = input$carto_colour) +
-        ggplot2::scale_color_viridis_d(option = input$carto_colour, guide = "none") +
-        ggplot2::theme_bw() +
-        ggplot2::labs(fill = input$report_legend_title) +
-        ggplot2::theme(
-          panel.grid.major = ggplot2::element_line(
-            color = gray(0.5),
-            linetype = "dashed",
-            size = 0.5
-          ),
-          axis.text.x = ggplot2::element_text(angle = 90, vjust = 0.1)
-        )
-    }
-
-    output$map_view <- renderPlot(gg_map)
-
-    # preview map
-    showModal(modalDialog(
-      title = "Map Preview",
-      size = "l",
-      plotOutput("map_view")
-    ))
-  })
-
-  # popup window with interactive plotly map
-  # do not map attribute values to colours so only fill colour popup shows in map
-  observeEvent(input$custom_map, {
-    req(input$report_vars)
-
-    waiter$show()
-
-    # get layer to map
-    map_df <- report_active_df() %>%
-      dplyr::select(tidyselect::all_of(input$report_vars[1]))
-    
-    # get basemap
-    bbox <- unname(sf::st_bbox(map_df))
-    basemap <-
-      ggmap::get_map(
-        location = bbox,
-        source = "osm",
-        color = "bw",
-        force = TRUE,
-        zoom = 10
-      )
-
-    basemap <- ggmap_bbox(basemap)
-
-    map_df_3857 <- map_df %>%
-      sf::st_transform(3857)
-
-    if (input$carto_mask_zeros == TRUE &
-      is.numeric(map_df[[input$report_vars[1]]])) {
-      map_df_3857 <- map_df_3857 %>%
-        dplyr::filter(.data[[input$report_vars[1]]] != 0)
-    } else if (input$carto_mask_zeros == TRUE &
-      (is.character(map_df[[input$report_vars[1]]]) |
-        is.factor(map_df[[input$report_vars[1]]]))) {
-      map_df_3857 <- na.omit(map_df_3857)
-    }
-
-    # generate cartographic output
-    if (is.numeric(map_df[[input$report_vars[1]]])) {
-      gg_map <- ggmap::ggmap(basemap) +
-        ggplot2::coord_sf(crs = sf::st_crs(3857)) + # force the ggplot2 map to be in 3857
-        ggplot2::geom_sf(
-          data = map_df_3857,
-          ggplot2::aes(fill = .data[[input$report_vars[1]]]),
-          size = input$carto_line_width,
-          inherit.aes = FALSE
-        ) +
-        ggplot2::scale_fill_viridis_c(option = input$carto_colour) +
-        ggplot2::theme_bw() +
-        ggplot2::labs(fill = input$report_legend_title) +
-        ggplot2::theme(
-          panel.grid.major = ggplot2::element_line(
-            color = gray(0.5),
-            linetype = "dashed",
-            size = 0.5
-          ),
-          axis.text.x = ggplot2::element_text(angle = 90, vjust = 0.1)
-        )
-    } else if (is.character(map_df[[input$report_vars[1]]]) |
-      is.factor(map_df[[input$report_vars[1]]])) {
-      gg_map <- ggmap::ggmap(basemap) +
-        ggplot2::coord_sf(crs = sf::st_crs(3857)) + # force the ggplot2 map to be in 3857
-        ggplot2::geom_sf(
-          data = map_df_3857,
-          ggplot2::aes(fill = .data[[input$report_vars[1]]]),
-          size = input$carto_line_width,
-          inherit.aes = FALSE
-        ) +
-        ggplot2::scale_fill_viridis_d(option = input$carto_colour) +
-        ggplot2::theme_bw() +
-        ggplot2::labs(fill = input$report_legend_title) +
-        ggplot2::theme(
-          panel.grid.major = ggplot2::element_line(
-            color = gray(0.5),
-            linetype = "dashed",
-            size = 0.5
-          ),
-          axis.text.x = ggplot2::element_text(angle = 90, vjust = 0.1)
-        )
-    }
-
-    waiter$hide()
-
-    output$plotly_map <- plotly::renderPlotly({
-      plotly::ggplotly(gg_map) %>%
-        plotly::layout(
-          xaxis = list(autorange = TRUE),
-          yaxis = list(autorange = TRUE)
-        ) %>%
-        plotly::toWebGL()
-    })
-
-    # preview map
-    showModal(modalDialog(
-      title = "Map Preview",
-      size = "l",
-      plotly::plotlyOutput(
-        "plotly_map",
-        height = "75vh"
-      )
-    ))
-  })
-
   # preview chart
   observeEvent(input$preview_chart, {
     req(input$report_vars)
     
-    # get layer to map
+    # get layer to chart
     chart_df <- report_active_df() %>%
       dplyr::select(tidyselect::all_of(c(
         input$report_vars[1], input$report_group_vars
@@ -1191,7 +956,7 @@ shinyServer(function(input, output, session) {
 
     output$chart_view <- renderPlot(gg_chart)
 
-    # preview map
+    # preview chart
     showModal(modalDialog(
       title = "Chart Preview",
       size = "l",
@@ -1262,75 +1027,6 @@ shinyServer(function(input, output, session) {
 
     for (i in seq_along(input$report_vars)) {
       report_var <- input$report_vars[i]
-
-      if (input$carto_mask_zeros == TRUE &
-        is.numeric(map_df[[report_var]])) {
-        map_df_3857 <- map_df_3857 %>%
-          dplyr::filter(.data[[report_var]] != 0)
-      } else if (input$carto_mask_zeros == TRUE &
-        (is.character(map_df[[report_var]]) |
-          is.factor(map_df[[report_var]]))) {
-        map_df_3857 <- na.omit(map_df_3857)
-      }
-
-      # generate cartographic output
-      if (is.numeric(map_df[[report_var]])) {
-        gg_map <- ggmap::ggmap(basemap) +
-          ggplot2::coord_sf(crs = sf::st_crs(3857)) + # force the ggplot2 map to be in 3857
-          ggplot2::geom_sf(
-            data = map_df_3857,
-            ggplot2::aes(fill = .data[[report_var]], color = .data[[report_var]]),
-            size = input$carto_line_width,
-            inherit.aes = FALSE
-          ) +
-          ggplot2::scale_fill_viridis_c(option = input$carto_colour) +
-          ggplot2::scale_color_viridis_c(option = input$carto_colour, guide = "none") +
-          ggplot2::theme_bw() +
-          ggplot2::labs(fill = input$report_legend_title) +
-          ggplot2::theme(
-            panel.grid.major = ggplot2::element_line(
-              color = gray(0.5),
-              linetype = "dashed",
-              size = 0.5
-            ),
-            axis.text.x = ggplot2::element_text(angle = 90, vjust = 0.1)
-          )
-      } else if (is.character(map_df[[report_var]]) |
-        is.factor(map_df[[report_var]])) {
-        gg_map <- ggmap::ggmap(basemap) +
-          ggplot2::coord_sf(crs = st_crs(3857)) + # force the ggplot2 map to be in 3857
-          ggplot2::geom_sf(
-            data = map_df_3857,
-            ggplot2::aes(fill = .data[[report_var]], color = .data[[report_var]]),
-            size = input$carto_line_width,
-            inherit.aes = FALSE
-          ) +
-          ggplot2::scale_fill_viridis_d(option = input$carto_colour) +
-          ggplot2::scale_color_viridis_d(option = input$carto_colour, guide = "none") +
-          ggplot2::theme_bw() +
-          ggplot2::labs(fill = input$report_legend_title) +
-          ggplot2::theme(
-            panel.grid.major = ggplot2::element_line(
-              color = gray(0.5),
-              linetype = "dashed",
-              size = 0.5
-            ),
-            axis.text.x = ggplot2::element_text(angle = 90, vjust = 0.1)
-          )
-      }
-
-      tmp_map_dir <- paste0(tempdir(), "/", report_var, "_report_map.png")
-      ggplot2::ggsave(
-        tmp_map_dir,
-        gg_map,
-        dpi = 300,
-        units = "cm",
-        width = 30,
-        height = 30
-      )
-
-      # temporary location to store current ggmap
-      data_file$report_map <- c(data_file$report_map, tmp_map_dir)
 
       # make charts
       # get layer to chart
@@ -1411,7 +1107,6 @@ shinyServer(function(input, output, session) {
     },
     content = function(file) {
       raw_table <- data_file$report_raw_table_dir
-      map <- data_file$report_map
       gpkg <- data_file$report_raw_gpkg_dir
 
       if (input$make_chart == TRUE) {
@@ -1419,13 +1114,13 @@ shinyServer(function(input, output, session) {
         summary_table <- data_file$report_summary_table_dir
         zip(
           zipfile = file,
-          files = c(summary_table, raw_table, map, chart, gpkg),
+          files = c(summary_table, raw_table, chart, gpkg),
           flags = "-r9Xj"
         )
       } else {
         zip(
           zipfile = file,
-          files = c(raw_table, map, gpkg),
+          files = c(raw_table, gpkg),
           flags = "-r9Xj"
         )
       }

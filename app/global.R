@@ -20,6 +20,7 @@ library(config)
 library(ggplot2)
 library(plotly)
 library(qfieldcloudR)
+library(leafgl)
 
 # config
 config <- config::get()
@@ -106,4 +107,9 @@ map_screen <- tagList(
 loading_screen <- tagList(
   waiter::spin_loader(),
   h4("Loading...")
+)
+
+login_screen <- shiny::tagList(
+  waiter::spin_flower(),
+  shiny::h4("Logging in...")
 )

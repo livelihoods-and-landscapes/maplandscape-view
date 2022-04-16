@@ -15,9 +15,6 @@ add_layers_leaflet_no_zoom <-
            map_active_df,
            map_var,
            map_colour,
-           opacity,
-           map_line_width,
-           map_line_colour,
            waiter,
            mask_zero,
            base_group) {
@@ -46,13 +43,13 @@ add_layers_leaflet_no_zoom <-
       map_df <- try(map_active_df %>%
         sf::st_transform(4326))
 
-      if (mask_zero == TRUE) {
-        try(map_df[[map_var]][map_df[[map_var]] == 0] <- NA)
-      }
-
       if ("try-error" %in% class(map_df)) {
         waiter$hide()
         return()
+      }
+      
+      if (mask_zero == TRUE) {
+        try(map_df[[map_var]][map_df[[map_var]] == 0] <- NA)
       }
 
       # get geometry type of map active layer
@@ -73,26 +70,23 @@ add_layers_leaflet_no_zoom <-
         }
 
         # draw polygon layers
-        if (geometry_type == "POLYGON" |
-          geometry_type == "MULTIPOLYGON") {
+        if (geometry_type == "POLYGON" | geometry_type == "MULTIPOLYGON") {
+          if (geometry_type == "MULTIPOLYGON") {
+            # cast MULTIPOLYGON to POLYGON as leafgl does not support multi*
+            map_df <- sf::st_cast(map_df, "POLYGON")
+          }
+          
           proxy_map <- leaflet::leafletProxy(map_object, data = map_df) %>%
+            leafgl::clearGlLayers() %>%
             leaflet::clearControls() %>%
             leaflet::clearMarkers() %>%
             leaflet::clearShapes() %>%
-            leaflet::addPolygons(
+            leafgl::addGlPolygons(
               data = map_df,
               layerId = map_df$layer_id,
-              weight = map_line_width,
-              opacity = 1.0,
-              color = map_line_colour,
+              opacity = 1,
               fillColor = ~ pal(map_df[[map_var]]),
-              fillOpacity = opacity,
-              group = "layer",
-              highlightOptions = leaflet::highlightOptions(
-                color = "white",
-                weight = 0,
-                bringToFront = TRUE
-              ),
+              group = "layer"
             ) %>%
             leaflet::addLayersControl(
               baseGroups = base_group,
@@ -100,26 +94,23 @@ add_layers_leaflet_no_zoom <-
               options = leaflet::layersControlOptions(collapsed = FALSE),
               position = c("bottomright")
             )
-        } else if (geometry_type == "LINESTRING" |
-          geometry_type == "MULTILINESTRING") {
+        } else if (geometry_type == "LINESTRING" | geometry_type == "MULTILINESTRING") {
+          if (geometry_type == "MULTILINESTRING") {
+            # cast MULTILINESTRING to LINESTRING as leafgl does not support multi*
+            map_df <- sf::st_cast(map_df, "LINESTRING")
+          }
+          
           proxy_map <- leaflet::leafletProxy(map_object, data = map_df) %>%
+            leafgl::clearGlLayers() %>%
             leaflet::clearControls() %>%
             leaflet::clearMarkers() %>%
             leaflet::clearShapes() %>%
-            leaflet::addPolylines(
+            leafgl::addGlPolylines(
               data = map_df,
               layerId = map_df$layer_id,
-              weight = map_line_width,
-              opacity = 1.0,
-              color = map_line_colour,
-              fillColor = ~ pal(map_df[[map_var]]),
-              fillOpacity = opacity,
-              group = "layer",
-              highlightOptions = leaflet::highlightOptions(
-                color = "white",
-                weight = 0,
-                bringToFront = TRUE
-              ),
+              opacity = 1,
+              color = ~ pal(map_df[[map_var]]),
+              group = "layer"
             ) %>%
             leaflet::addLayersControl(
               baseGroups = base_group,
@@ -127,35 +118,35 @@ add_layers_leaflet_no_zoom <-
               options = leaflet::layersControlOptions(collapsed = FALSE),
               position = c("bottomright")
             )
-        } else if (geometry_type == "MULTIPOINT") {
+        } else {
+          
           # cast MULTIPOINT to POINT as Leaflet does not support multipoint
-          map_df <- st_cast(map_df, "POINT")
-
-          proxy_map <-
-            leaflet::leafletProxy(map_object, data = map_df) %>%
-            leaflet::clearControls() %>%
-            leaflet::clearMarkers() %>%
-            leaflet::clearShapes() %>%
-            leaflet::addPolylines(
-              data = map_df,
-              layerId = map_df$layer_id,
-              options = markerOptions(clickable = TRUE)
-            ) %>%
-            leaflet::fitBounds(bbox[1], bbox[2], bbox[3], bbox[4])
-        } else if (geometry_type == "POINT") {
+          map_df <- sf::st_cast(map_df, "POINT")
+          
           proxy_map <- leaflet::leafletProxy(map_object, data = map_df) %>%
+            leafgl::clearGlLayers() %>%
             leaflet::clearControls() %>%
             leaflet::clearMarkers() %>%
             leaflet::clearShapes() %>%
-            leaflet::addMarkers(
+            leafgl::addGlPoints(
               data = map_df,
               layerId = map_df$layer_id,
-              options = markerOptions(clickable = TRUE)
+              fillColor = ~ pal(map_df[[map_var]]),
+              group = "layer",
+              opacity = 1
+            ) %>%
+            leaflet::addLayersControl(
+              baseGroups = base_group,
+              overlayGroups = "layer",
+              options = leaflet::layersControlOptions(collapsed = FALSE),
+              position = c("bottomright")
             )
         }
+        
+        waiter$hide()
+        
         proxy_map
       }
     }
 
-    waiter$hide()
   }
