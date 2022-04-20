@@ -7,6 +7,7 @@ RUN R -e 'install.packages(c("devtools", "plotly"), \
   repos="http://cran.rstudio.com/")'
 
 RUN R -e 'devtools::install_github("livelihoods-and-landscapes/qfieldcloudR")'
+RUN R -e 'devtools::install_github("livelihoods-and-landscapes/leafgl")'
 
 # copy necessary files
 RUN mkdir /root/app
